@@ -1,0 +1,11 @@
+FROM debian:bookworm-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends cmake g++ make ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY . .
+RUN cmake -S . -B /out -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DLLAMA_CURL=OFF -DBUILD_SHARED_LIBS=OFF -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=ON && cmake --build /out --target llama-server --parallel 2
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 libstdc++6 curl && rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/bin/llama-server /usr/local/bin/llama-server
+COPY --from=build /src/LICENSE /usr/share/licenses/llama.cpp/LICENSE
+USER 10001:10001
+ENTRYPOINT ["/usr/local/bin/llama-server"]

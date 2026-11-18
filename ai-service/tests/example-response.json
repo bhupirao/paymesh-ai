@@ -1,0 +1,47 @@
+{
+  "investigation_id": "b4330b6e-5b26-448e-938a-6d8cbe8cc53b",
+  "payment_id": "11111111-1111-4111-8111-111111111111",
+  "investigation_status": "COMPLETED",
+  "scenario": "PROCESSING",
+  "generated_at": "2026-11-14T02:42:54.071978Z",
+  "customer_view": {
+    "title": "Your payment is still being processed",
+    "summary": "Your payment is taking longer than expected. Please wait for confirmation before making another payment.",
+    "what_happened": "We are still waiting for the final payment confirmation.",
+    "next_action": "Please wait for an update. If your payment remains unresolved, contact support.",
+    "requires_user_action": false
+  },
+  "technical_view": {
+    "observed_payment_status": "PROCESSING",
+    "root_cause": "The underlying cause could not be determined from the supplied evidence.",
+    "root_cause_certainty": "INCONCLUSIVE",
+    "supporting_evidence": [
+      "paymentStatus",
+      "amount",
+      "currency",
+      "collectedAt"
+    ],
+    "technical_explanation": "No final outcome is confirmed. The payment is PROCESSING.",
+    "recommended_actions": [
+      "Please wait for an update. If your payment remains unresolved, contact support."
+    ],
+    "certainty": "CONFIRMED"
+  },
+  "evidence_references": [
+    "paymentStatus",
+    "amount",
+    "currency",
+    "collectedAt"
+  ],
+  "limitations": [
+    "Supplied evidence is not authenticated or fetched from Java.",
+    "Snapshot analysis cannot verify bank debit, settlement, or refund arrival.",
+    "gatewayTransactions evidence is unavailable; absence does not prove no event occurred.",
+    "refunds evidence is unavailable; absence does not prove no event occurred.",
+    "webhooks evidence is unavailable; absence does not prove no event occurred.",
+    "reconciliation evidence is unavailable; absence does not prove no event occurred."
+  ],
+  "analysis_mode": "DETERMINISTIC",
+  "knowledge_references": [],
+  "generation_status": "DISABLED"
+}

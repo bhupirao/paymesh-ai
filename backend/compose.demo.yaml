@@ -1,0 +1,22 @@
+name: paymesh-demo-db
+
+services:
+  postgres:
+    image: postgres:16.16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paymesh_demo
+      POSTGRES_USER: paymesh_demo_user
+      POSTGRES_PASSWORD: ${PAYMESH_DEMO_DB_PASSWORD:?Set PAYMESH_DEMO_DB_PASSWORD in an external env file}
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - paymesh_demo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymesh_demo_user -d paymesh_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  paymesh_demo_pgdata:

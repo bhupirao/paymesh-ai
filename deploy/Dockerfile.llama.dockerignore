@@ -1,0 +1,8 @@
+.git
+build
+build-*
+models
+*.gguf
+**/*.gguf
+**/__pycache__
+.venv

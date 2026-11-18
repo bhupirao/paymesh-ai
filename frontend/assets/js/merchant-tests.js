@@ -1,0 +1,70 @@
+import { mountMerchant } from './merchant/view.js';
+import { MERCHANT_PAGES,merchantRoute } from './merchant/routes.js';
+import { createMerchantWorkspace,validPassword,validateMerchantData } from './merchant/model.js';
+import { element,pairs } from './admin/view.js';
+import { resolveRoute } from './portals/router.js';
+import { request } from './api/client.js';
+import { setSession,clearSession,getSession } from './auth/session.js';
+import { tokenResponse,paymentId } from './test-fixtures.js';
+const results=[],assert=(v,label)=>{if(!v)throw new Error(label);results.push(label);};
+const original=window.fetch;let model,state;
+const profile={merchantId:'SYNTHETIC_MERCHANT',accountStatus:'ACTIVE',businessStatus:'ACTIVE',merchantVerified:true,merchantActive:true,membershipActive:true,registrationAvailable:false,businessName:null,email:null};
+const payment={paymentId,merchantId:profile.merchantId,amount:'100.01',currency:'INR',status:'SUCCESS',createdAt:'2026-01-01T00:00:00Z',customerId:'test-customer'};
+const refund={...payment,refundId:paymentId,amount:'0.01'};
+const dashboard={profile,totalPayments:1,paymentCounts:[{status:'SUCCESS',count:1}],refundCounts:[],paymentAmounts:[{status:'SUCCESS',currency:'INR',amount:'100.01'},{status:'SUCCESS',currency:'USD',amount:'25.00'}],refundAmounts:[],recentPayments:[payment],recentRefunds:[]};
+const page={items:[payment],page:0,size:25,total:1};
+const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+try{
+  for(const path of Object.keys(MERCHANT_PAGES)){
+    assert(resolveRoute(path,null).path==='/merchant/login','no session route guarded '+path);
+    assert(resolveRoute(path,{roles:['ADMIN']}).path==='/merchant/login','Admin cannot enter '+path);
+    assert(resolveRoute(path,{roles:['MERCHANT']}).page==='dashboard','Merchant direct route '+path);
+  }
+  for(const path of ['/merchant/dashboard','/merchant/payments?page=0&size=25','/merchant/refunds?currency=USD','/merchant/profile'])assert(merchantRoute('GET',path),'exact route '+path);
+  assert(merchantRoute('POST','/merchant/profile/password'),'exact password route');
+  for(const path of ['/merchant/payments?merchantId=OTHER','/merchant/payments?userId=other','/merchant/dashboard?page=0','/merchant/profile?role=ADMIN','/merchant/payments?page=0&page=1','/merchant/payments?size=101','/merchant/payments?currency=EUR','/merchant/payments?sort=sql','/merchant/refunds/'+paymentId])assert(!merchantRoute('GET',path),'unsupported selector '+path);
+  assert(!merchantRoute('POST','/merchant/profile/password?role=ADMIN')&&!merchantRoute('GET',null),'password query and invalid route types denied');
+  assert(validPassword('strong-test-password','strong-test-password'),'valid password');assert(validPassword('😀'.repeat(12),'😀'.repeat(12)),'Unicode code point policy');
+  for(const value of ['short','x'.repeat(73),'é'.repeat(37),'\ud800'.repeat(12),'\0'+'a'.repeat(14)])assert(!validPassword(value,value),'invalid password policy '+value.length);
+  assert(!validPassword('strong-test-password','different-test-password'),'confirmation required');
+  assert(validateMerchantData('profile',profile).businessName===null,'honest nullable legacy profile');
+  assert(validateMerchantData('dashboard',dashboard).paymentAmounts[1].currency==='USD','currency groups preserved');assert(dashboard.paymentAmounts[0].amount==='100.01','exact decimal text preserved');
+  for(const status of ['CREATED','PROCESSING','SUCCESS','FAILED','CANCELLED','REFUNDED'])assert(validateMerchantData('payments',{...page,items:[{...payment,status}]}).items[0].status===status,'actual payment state '+status);
+  let rejected=false;try{validateMerchantData('payments',{...page,items:[{...payment,amount:100.01}]});}catch{rejected=true;}assert(rejected,'numeric money response rejected');
+  const host=element('div');pairs(host,{businessName:'<img src=x onerror=alert(1)>',email:null});assert(host.textContent.includes('<img'),'API text rendered literally');assert(!host.querySelector('img'),'no untrusted HTML insertion');
+  setSession(tokenResponse(['MERCHANT']),'synthetic-merchant');let calls=[],pending=null,failure=null;
+  const api=async(path,options)=>{calls.push({path,options});if(failure)throw failure;if(pending)return pending.promise;if(options?.method==='POST')return {message:'Changed'};if(path.includes('/profile'))return profile;if(path.includes('/dashboard'))return dashboard;return page;};
+  model=createMerchantWorkspace(s=>state=s,{api});
+  await model.load('dashboard');assert(calls.at(-1).path==='/merchant/dashboard','dashboard URL');assert(state.data.totalPayments===1,'actual dashboard data');
+  await model.load('profile');assert(state.data.registrationAvailable===false,'missing registration exposed honestly');
+  await model.load('payments',{currency:'USD',search:'test-customer',sort:'oldest'},2);assert(calls.at(-1).path.includes('page=2'),'pagination request');assert(calls.at(-1).path.includes('currency=USD'),'currency filter request');assert(calls.at(-1).path.includes('search=test-customer'),'customer search request');
+  await model.load('refunds');assert(calls.at(-1).path.startsWith('/merchant/refunds?'),'refund URL');
+  assert(validateMerchantData('refunds',{...page,items:[refund]}).items[0].amount==='0.01','refund exact decimals');
+  assert(validateMerchantData('payments',{...page,items:[],total:0}).items.length===0,'empty list supported');
+  const count=calls.length;assert(!await model.changePassword('current-secret-pass','new-strong-password','new-strong-password'),'review without confirm does not submit');assert(calls.length===count,'explicit confirm required');
+  assert(!await model.changePassword('current-secret-pass','short','short',true),'password invalid no submit');
+  pending=deferred();const first=model.changePassword('current-secret-pass','new-strong-password','new-strong-password',true);assert(state.pending,'password loading');assert(!await model.changePassword('current-secret-pass','new-strong-password','new-strong-password',true),'duplicate password prevented');
+  const mutation=calls.at(-1);assert(mutation.path==='/merchant/profile/password'&&mutation.options.method==='POST','password endpoint/method');assert(mutation.options.body.confirmPassword==='new-strong-password','exact password fields');assert(!('role' in mutation.options.body)&&!('merchantId' in mutation.options.body),'no client ownership/role');
+  pending.resolve({message:'Changed'});assert(await first,'confirmed password result');assert(getSession()===null&&state.data===null,'fresh login required and private state cleared');pending=null;
+  setSession(tokenResponse(['MERCHANT']),'synthetic-merchant');failure={status:403};assert(!await model.changePassword('bad-current-pass','new-strong-password','new-strong-password',true),'wrong current password denial');assert(getSession()!==null,'403 retains session');failure=null;
+  pending=deferred();const late=model.load('dashboard');clearSession('logout');pending.resolve(dashboard);await late;assert(state.data===null,'logout ignores late dashboard');pending=null;
+  setSession(tokenResponse(['MERCHANT']),'old-session');pending=deferred();const replaced=model.load('payments');setSession(tokenResponse(['MERCHANT']),'replacement');pending.resolve(page);await replaced;assert(state.data===null,'replacement drops old records');pending=null;
+  failure={status:504};const before=calls.length;assert(!await model.changePassword('current-secret-pass','new-strong-password','new-strong-password',true),'timeout uncertain');assert(state.uncertain,'uncertainty retained');assert(!await model.changePassword('current-secret-pass','new-strong-password','new-strong-password',true),'no automatic or blind uncertain retry');assert(calls.length===before+1,'one mutation request only');failure=null;
+  setSession(tokenResponse(['MERCHANT']),'fresh-synthetic');failure={status:500};await model.changePassword('current-secret-pass','new-strong-password','new-strong-password',true);assert(state.uncertain,'all server errors preserve uncertain outcome');failure=null;
+  clearSession('expired');assert(state.data===null&&!state.uncertain,'expiry clears private state');
+  setSession(tokenResponse(['MERCHANT']),'synthetic');let blockedState;const blocked=createMerchantWorkspace(s=>blockedState=s,{api,financialLocked:()=>true});assert(!await blocked.changePassword('current-secret-pass','new-strong-password','new-strong-password',true),'financial/investigation lock respected');blocked.dispose();
+  window.fetch=async(url,options)=>{assert(url==='/api/v1/merchant/payments?currency=INR','same-origin Merchant URL');assert(Boolean(options.headers.Authorization),'Bearer forwarded');assert(options.credentials==='omit','no auth cookies on Merchant API');return {ok:true,status:200,json:async()=>({...page,items:[payment]}),headers:new Headers()};};
+  await request('/merchant/payments?currency=INR');
+  setSession(tokenResponse(['ADMIN']),'admin');let wrongRole=false;try{await request('/merchant/profile');}catch(e){wrongRole=e.status===403;}assert(wrongRole,'API client Merchant role gate');
+  setSession(tokenResponse(['MERCHANT']),'render-synthetic');let uiCalls=[];
+  window.fetch=async(url,options)=>{uiCalls.push({url,method:options.method});return {ok:true,status:200,json:async()=>url.endsWith('/dashboard')?dashboard:profile,headers:new Headers()};};
+  const ui=mountMerchant({navigate:()=>{},openPayment:()=>{throw new Error('Details must be explicit');},financialLocked:()=>false});
+  await ui.show('/merchant/dashboard');const root=document.getElementById('merchant-workspace');assert(root.textContent.includes('INR')&&root.textContent.includes('USD'),'dashboard DOM separates currencies');assert(root.textContent.includes('100.01'),'dashboard exact amount rendered');
+  await ui.show('/merchant/profile');assert(root.textContent.includes('no registration profile'),'legacy missing profile visible');assert(root.textContent.includes('Refresh authorized snapshot'),'profile refresh retained');
+  await ui.show('/merchant/security');assert(root.textContent.includes('Current password')&&root.textContent.includes('Confirm new password'),'accessible security form labels');
+  assert(uiCalls.every(c=>c.method==='GET'&&!c.url.includes('investigate')),'view opening causes no mutation or AI request');
+  clearSession('logout');assert(root.hidden,'logout hides rendered private UI');ui.dispose();
+  document.getElementById('summary').textContent=`PASS: ${results.length} assertions`;
+  for(const label of results){const li=element('li',label);document.getElementById('results').append(li);}
+}catch(error){document.getElementById('summary').textContent='FAIL: '+error.message;throw error;}
+finally{window.fetch=original;model?.dispose();clearSession('test-cleanup');}

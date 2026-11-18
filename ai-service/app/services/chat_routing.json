@@ -1,0 +1,93 @@
+{
+  "concept": "\\b(what (?:is|are)|how (?:does|do|are)|meaning of|define|definition|difference between|in general|concept|explain|tell me about|why (?:does|do))\\b",
+  "personal": "\\b(my|our|this|current|selected|that payment|it|recorded)\\b",
+  "unsupportedQuery": "\\b(latest|recent|last|newest|oldest|trend|trends|daily|yesterday)\\b",
+  "follow": "^(?:why|why did it fail|how much|what about it|what about that|is it still processing|can i refund it again|what about the gateway)[?.! ]*$",
+  "topics": [
+    [
+      "refunds",
+      "REFUND_SUMMARY",
+      "\\b(refund|refunds|refunded|refundable)\\b"
+    ],
+    [
+      "checkout",
+      "CHECKOUT",
+      "\\b(checkout|receipt)\\b"
+    ],
+    [
+      "links",
+      "CHECKOUT",
+      "\\b(payment links?|expired|cancelled)\\b"
+    ],
+    [
+      "statistics",
+      "STATISTICS",
+      "\\b(statistics|stats|total payments|payment volume|how many|revenue|balance|profit|payment activity|compare.*(?:INR|USD))\\b"
+    ],
+    [
+      "routing",
+      "GATEWAY",
+      "\\b(gateway|gateways|razorpay|stripe|routing)\\b"
+    ],
+    [
+      "timeout",
+      "PROCESSING",
+      "\\b(processing|timeout|timed out|uncertain|pending)\\b"
+    ],
+    [
+      "failure",
+      "PAYMENT_FAILURE",
+      "\\b(fail|failed|failure|declined)\\b"
+    ],
+    [
+      "lifecycle",
+      "PAYMENT_STATUS",
+      "\\b(status|successful|success|payment state)\\b"
+    ],
+    [
+      "idempotency",
+      "KNOWLEDGE",
+      "\\b(idempotenc\\w*|duplicate\\w*)\\b"
+    ],
+    [
+      "eligibility",
+      "KNOWLEDGE",
+      "\\b(merchant eligibility|eligible merchant)\\b"
+    ],
+    [
+      "webhook",
+      "KNOWLEDGE",
+      "\\b(webhooks?)\\b"
+    ],
+    [
+      "reconciliation",
+      "KNOWLEDGE",
+      "\\b(reconciliation)\\b"
+    ],
+    [
+      "statistics",
+      "KNOWLEDGE",
+      "\\b(settlement)\\b"
+    ],
+    [
+      "api",
+      "KNOWLEDGE",
+      "\\b(api|apis|http|status codes?)\\b"
+    ],
+    [
+      "security",
+      "KNOWLEDGE",
+      "\\b(authentication|authorization|csrf|jwt|security|access tokens?)\\b"
+    ],
+    [
+      "orchestration",
+      "KNOWLEDGE",
+      "\\b(orchestration)\\b"
+    ],
+    [
+      "lifecycle",
+      "KNOWLEDGE",
+      "\\b(lifecycle|payments?)\\b"
+    ]
+  ]
+}

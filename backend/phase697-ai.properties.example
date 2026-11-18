@@ -1,0 +1,10 @@
+# Copy only into reviewed protected external configuration, never active tracked configuration.
+paymesh.ai.base-url=http://127.0.0.1:8000
+paymesh.ai.connect-timeout-ms=2000
+paymesh.ai.chat.enabled=false
+paymesh.ai.chat.response-timeout-ms=25000
+paymesh.ai.chat.max-response-bytes=65536
+# Supply privately only during separately approved AI enablement; no token is present here.
+paymesh.ai.chat.service-token=
+paymesh.demo.password-recovery.enabled=false
+# Existing JWT/session/database/investigation settings must be preserved, not replaced by this fragment.

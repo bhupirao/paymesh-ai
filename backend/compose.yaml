@@ -1,0 +1,51 @@
+name: paymesh-local-container
+
+services:
+  db:
+    image: postgres:16.16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paymesh_container
+      POSTGRES_USER: paymesh_container_user
+      POSTGRES_PASSWORD: ${PAYMESH_CONTAINER_DB_PASSWORD:?Set PAYMESH_CONTAINER_DB_PASSWORD in an external env file}
+    volumes:
+      - paymesh_container_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymesh_container_user -d paymesh_container"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PAYMESH_CONTAINER_HTTP_PORT:-18081}:8080"
+    volumes:
+      - type: bind
+        source: ${PAYMESH_JWT_KEY_DIR:?Set PAYMESH_JWT_KEY_DIR to an external key directory}
+        target: /run/paymesh/keys
+        read_only: true
+    environment:
+      PORT: "8080"
+      SERVER_ADDRESS: 0.0.0.0
+      PAYMESH_DB_URL: jdbc:postgresql://db:5432/paymesh_container
+      PAYMESH_DB_USER: paymesh_container_user
+      PAYMESH_DB_PASSWORD: ${PAYMESH_CONTAINER_DB_PASSWORD:?Set PAYMESH_CONTAINER_DB_PASSWORD in an external env file}
+      PAYMESH_JWT_PRIVATE_KEY_FILE: /run/paymesh/keys/jwt-private.pem
+      PAYMESH_JWT_PUBLIC_KEY_FILE: /run/paymesh/keys/jwt-public.pem
+      PAYMESH_JWT_ISSUER: ${PAYMESH_JWT_ISSUER:?Set PAYMESH_JWT_ISSUER in an external env file}
+      PAYMESH_JWT_AUDIENCE: ${PAYMESH_JWT_AUDIENCE:?Set PAYMESH_JWT_AUDIENCE in an external env file}
+      PAYMESH_RAZORPAY_WEBHOOK_SECRET: ${PAYMESH_RAZORPAY_WEBHOOK_SECRET:?Set PAYMESH_RAZORPAY_WEBHOOK_SECRET in an external env file}
+      PAYMESH_STRIPE_WEBHOOK_SECRET: ${PAYMESH_STRIPE_WEBHOOK_SECRET:?Set PAYMESH_STRIPE_WEBHOOK_SECRET in an external env file}
+      PAYMESH_SETTLEMENT_ADMIN_TOKEN: ${PAYMESH_SETTLEMENT_ADMIN_TOKEN:?Set PAYMESH_SETTLEMENT_ADMIN_TOKEN in an external env file}
+      PAYMESH_SETTLEMENT_SCHEDULING_ENABLED: "false"
+      PAYMESH_DEMO_GATEWAY_TIMEOUT_ENABLED: "false"
+
+volumes:
+  paymesh_container_pgdata:

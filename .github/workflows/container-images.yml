@@ -1,0 +1,117 @@
+name: Container images (manual approval only)
+on:
+  workflow_dispatch:
+    inputs:
+      namespace:
+        description: Exact Docker Hub destination namespace to review
+        required: true
+        type: string
+      tag:
+        description: Immutable release tag (use a reviewed commit tag)
+        required: true
+        type: string
+      publish_images:
+        description: Publish to Docker Hub (requires protected environment approval)
+        default: false
+        type: boolean
+      disposable_e2e_verified:
+        description: Confirm all five containers passed disposable-data E2E before publishing
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: container-images-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate destinations and publishing gate
+        env:
+          NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          PUBLISH: ${{ inputs.publish_images }}
+          E2E: ${{ inputs.disposable_e2e_verified }}
+        run: |
+          python3 - <<'PY'
+          import os,re
+          assert re.fullmatch(r'[a-z0-9][a-z0-9_-]{1,63}',os.environ['NAMESPACE']), 'Invalid namespace'
+          assert re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}',os.environ['RELEASE_TAG']), 'Invalid tag'
+          assert os.environ['PUBLISH'] != 'true' or os.environ['E2E'] == 'true', 'Disposable E2E approval missing'
+          PY
+      - name: Offline container adapter regression
+        run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - name: Validate actual Compose schema (configuration only)
+        env:
+          DOCKERHUB_NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          export CONTAINER_SECRET_DIR="$RUNNER_TEMP/config-only-secrets"
+          export PAYMESH_REPO_DIR="$GITHUB_WORKSPACE"
+          export LLAMA_CPP_SOURCE_DIR="$RUNNER_TEMP/config-only-source"
+          export QWEN_MODEL_FILE="$RUNNER_TEMP/config-only-model.gguf"
+          mkdir -p "$CONTAINER_SECRET_DIR" "$LLAMA_CPP_SOURCE_DIR"
+          for name in db_password ai_token razorpay_secret stripe_secret settlement_token jwt_private jwt_public; do
+            touch "$CONTAINER_SECRET_DIR/$name"
+          done
+          touch "$QWEN_MODEL_FILE"
+          docker compose -f deploy/compose.yaml config --quiet
+  images:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: ${{ inputs.publish_images && 'dockerhub-publication' || 'container-build-only' }}
+    strategy:
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        image: [java, python, frontend, llama]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact small-model server source, never model weights
+        if: matrix.image == 'llama'
+        run: |
+          git init "$RUNNER_TEMP/llama-source"
+          git -C "$RUNNER_TEMP/llama-source" remote add origin https://github.com/ggml-org/llama.cpp.git
+          git -C "$RUNNER_TEMP/llama-source" fetch --depth=1 origin ec7f3ac9ab33e46b136eb5ab6a76c4d81f57c7f1
+          git -C "$RUNNER_TEMP/llama-source" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/llama-source" rev-parse HEAD)" = ec7f3ac9ab33e46b136eb5ab6a76c4d81f57c7f1
+      - uses: docker/setup-buildx-action@v3
+      - name: Select build context and reviewed tag
+        id: spec
+        env:
+          COMPONENT: ${{ matrix.image }}
+          NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          case "$COMPONENT" in
+            java) context="$GITHUB_WORKSPACE/backend"; file="$context/Dockerfile"; tag="$RELEASE_TAG" ;;
+            llama) context="$RUNNER_TEMP/llama-source"; file="$GITHUB_WORKSPACE/deploy/Dockerfile.llama"; tag="$RELEASE_TAG" ;;
+            *) context="$GITHUB_WORKSPACE"; file="$context/deploy/Dockerfile.$COMPONENT"; tag="$RELEASE_TAG" ;;
+          esac
+          echo "context=$context" >> "$GITHUB_OUTPUT"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "tag=$NAMESPACE/paymesh-$COMPONENT:$tag" >> "$GITHUB_OUTPUT"
+      - name: Docker Hub authentication (only after approval)
+        if: inputs.publish_images
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ steps.spec.outputs.context }}
+          file: ${{ steps.spec.outputs.file }}
+          platforms: linux/amd64
+          tags: ${{ steps.spec.outputs.tag }}
+          push: ${{ inputs.publish_images }}
+          load: ${{ !inputs.publish_images }}
+          provenance: mode=min
+      - name: Verify locally loaded image architecture
+        if: ${{ !inputs.publish_images }}
+        env:
+          IMAGE: ${{ steps.spec.outputs.tag }}
+        run: test "$(docker image inspect --format '{{.Architecture}}' "$IMAGE")" = amd64

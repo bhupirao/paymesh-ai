@@ -1,0 +1,15 @@
+import { element } from '../admin/view.js';
+import { mountConversation } from '../chat/presentation.js';
+import { createPaymentChat,paymentSuggestions } from './model.js';
+export function mountPaymentAI({panel=document.getElementById('payment-ask-panel'),root=document.getElementById('payment-ask-chat'),triggers=[document.getElementById('payment-ask-open'),document.getElementById('investigation-ask-open')],closeButton=document.getElementById('payment-ask-close'),feedback=document.getElementById('payment-ask-feedback'),locked=()=>false,onBusy=()=>{},api,savedConversations=api===undefined,confirm=message=>window.confirm(message)}={}){
+ let model,chat,active=true;
+ const available=()=>!model?.ready()||locked();
+ function sync(state){panel.hidden=!state.open;if(feedback)feedback.textContent=state.open?'':state.message;if(!state.open){chat?.hide();const draft=root.querySelector('textarea');if(draft)draft.value='';}for(const b of triggers)b.disabled=!model?.canOpen()||state.busy;}
+ const createContext=()=>{const host=element('section',undefined,'ai-context');host.setAttribute('aria-label','Fixed authorized payment context');return {root:host,clear(){host.replaceChildren();},render(state){host.replaceChildren();if(state.payment){const p=state.payment;host.append(element('p',`Payment ${p.paymentId} · Merchant ${p.merchantId}`),element('p',`${p.amount} ${p.currency} · ${p.paymentMethod} · recorded ${p.status}`),element('p',`This conversation is about the selected payment. Earlier answers may describe earlier records.`));}}};};
+ const modelFactory=(render,options)=>{model=createPaymentChat(next=>{render(next);sync(next);},{...options});return model;};
+ chat=mountConversation(root,{titleText:'Payment Ask AI',titleId:'payment-ask-title',helpId:'payment-ask-help',emptyText:'Welcome. This conversation is fixed to the authorized payment above. Opening this panel sends no AI request.',savedConversations,conversationScope:s=>({portalRole:s.role,context:{paymentId:s.payment.paymentId},fixedPaymentId:s.payment.paymentId}),modelFactory,createContext,welcome:paymentSuggestions,allowCancel:true,locked:available,onBusy,api,confirm,openPayment:id=>{if(model.state().payment?.paymentId===id)document.getElementById('details-title')?.focus();}});
+ function open(){if(!model.open())return false;chat.show();panel.hidden=false;root.querySelector('h2')?.focus();return true;}
+ function close(){model.close();chat.hide();panel.hidden=true;if(!triggers[0].disabled)triggers[0].focus();else document.getElementById('details-title')?.focus();}
+ for(const b of triggers)b.addEventListener('click',open);closeButton.addEventListener('click',close);panel.hidden=true;sync(model.state());
+ return {observe(details){if(active)model.observe(details);sync(model.state());},open,close,busy:model.busy,enter(){active=true;},leave(){active=false;model.leave();chat.hide();panel.hidden=true;},model,dispose(){for(const b of triggers)b.removeEventListener('click',open);closeButton.removeEventListener('click',close);chat.dispose();panel.hidden=true;}};
+}

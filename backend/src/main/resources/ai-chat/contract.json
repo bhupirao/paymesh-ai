@@ -1,0 +1,387 @@
+{
+  "customerWording": {
+    "words": {
+      "unsupported": "I can explain payment records, but I cannot make payments, issue refunds, change access or share private information. Use the appropriate account action to proceed.",
+      "clarify": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "missing_payment": "Please select a payment so I can explain its status, refunds or gateway activity.",
+      "refund_unavailable": "Refund history is unavailable, so the refunded total and remaining eligible amount cannot be confirmed.",
+      "refund_partial_history": "Available refund entries show {refunded}. The history is incomplete, so the total refunded and remaining eligible amount are unknown.",
+      "refund_ineligible": "Available refund entries show {refunded}. This payment is not refund eligible in its recorded status.",
+      "refund_none": "No refunds have been recorded for this payment. The total refunded amount is {refunded}, and {remaining} remains potentially eligible for refund, subject to verification.",
+      "refund_some": "The total refunded amount is {refunded}. {remaining} remains potentially eligible for refund, subject to verification.",
+      "refund_full": "The total refunded amount is {refunded}. No recorded amount remains eligible for another refund.",
+      "gateway_missing": "Gateway information is unavailable. I cannot confirm what happened at the gateway.",
+      "gateway_empty": "No gateway activity is included in the available records. This does not prove that no activity occurred.",
+      "gateway_records": "Recorded gateway activity: {observations}. These records do not confirm bank settlement or explain the underlying cause.",
+      "failure": "This payment is recorded as failed. The available records do not establish the reason.",
+      "not_failure": "This payment is recorded as {status}. The records do not establish a previous failure or its cause.",
+      "processing": "This payment is still processing. A timeout does not mean it failed. Check its status before attempting another payment.",
+      "not_processing": "This payment is recorded as {status}, rather than processing. The records do not confirm a previous timeout or recovery.",
+      "statistics_missing": "Complete payment and refund totals are unavailable. A few recent records cannot establish the overall totals.",
+      "statistics_complete": "Recorded activity: {summary}. Payment and refund totals are separate for each currency; these are not available balances or bank settlements.",
+      "statistics_incomplete": "Available activity entries: {summary}. These are partial subtotals, not complete payment or refund totals.",
+      "checkout_missing": "Link details are unavailable, so I cannot confirm whether this link can be paid.",
+      "checkout": "This payment link is {status}. {detail}",
+      "status": "This payment is recorded as {status}. {detail}"
+    },
+    "status": {
+      "CREATED": "created",
+      "PROCESSING": "processing",
+      "SUCCESS": "successful",
+      "FAILED": "failed",
+      "CANCELLED": "cancelled",
+      "REFUNDED": "fully refunded",
+      "ACTIVE": "active",
+      "UNCERTAIN": "unresolved",
+      "PAID": "paid",
+      "EXPIRED": "expired",
+      "UNAVAILABLE": "unavailable"
+    },
+    "statusDetails": {
+      "CREATED": "Processing has not started.",
+      "PROCESSING": "The outcome is not yet confirmed; avoid making a duplicate payment.",
+      "SUCCESS": "This is a simulated payment record, not confirmation of bank settlement.",
+      "FAILED": "The underlying reason is not established.",
+      "CANCELLED": "No future payment outcome is guaranteed.",
+      "REFUNDED": "Recorded refunds do not confirm that funds have reached the bank."
+    },
+    "checkoutDetails": {
+      "ACTIVE": "Eligibility and expiry must be checked before payment.",
+      "PROCESSING": "An attempt is still processing; do not submit another payment.",
+      "UNCERTAIN": "The outcome is unknown; check the existing attempt before trying again.",
+      "PAID": "It cannot be paid again, even if its payment was later refunded.",
+      "FAILED": "Another attempt requires a confirmed failure and fresh eligibility and expiry checks.",
+      "EXPIRED": "It cannot accept a new payment.",
+      "CANCELLED": "It cannot accept a new payment.",
+      "UNAVAILABLE": "Its eligibility for payment is not confirmed."
+    }
+  },
+  "routing": {
+    "concept": "\\b(what (?:is|are)|how (?:does|do|are)|meaning of|define|definition|difference between|in general|concept|explain|tell me about|why (?:does|do))\\b",
+    "personal": "\\b(my|our|this|current|selected|that payment|it|recorded)\\b",
+    "unsupportedQuery": "\\b(latest|recent|last|newest|oldest|trend|trends|daily|yesterday)\\b",
+    "follow": "^(?:why|why did it fail|how much|what about it|what about that|is it still processing|can i refund it again|what about the gateway)[?.! ]*$",
+    "topics": [
+      [
+        "refunds",
+        "REFUND_SUMMARY",
+        "\\b(refund|refunds|refunded|refundable)\\b"
+      ],
+      [
+        "checkout",
+        "CHECKOUT",
+        "\\b(checkout|receipt)\\b"
+      ],
+      [
+        "links",
+        "CHECKOUT",
+        "\\b(payment links?|expired|cancelled)\\b"
+      ],
+      [
+        "statistics",
+        "STATISTICS",
+        "\\b(statistics|stats|total payments|payment volume|how many|revenue|balance|profit|payment activity|compare.*(?:INR|USD))\\b"
+      ],
+      [
+        "routing",
+        "GATEWAY",
+        "\\b(gateway|gateways|razorpay|stripe|routing)\\b"
+      ],
+      [
+        "timeout",
+        "PROCESSING",
+        "\\b(processing|timeout|timed out|uncertain|pending)\\b"
+      ],
+      [
+        "failure",
+        "PAYMENT_FAILURE",
+        "\\b(fail|failed|failure|declined)\\b"
+      ],
+      [
+        "lifecycle",
+        "PAYMENT_STATUS",
+        "\\b(status|successful|success|payment state)\\b"
+      ],
+      [
+        "idempotency",
+        "KNOWLEDGE",
+        "\\b(idempotenc\\w*|duplicate\\w*)\\b"
+      ],
+      [
+        "eligibility",
+        "KNOWLEDGE",
+        "\\b(merchant eligibility|eligible merchant)\\b"
+      ],
+      [
+        "webhook",
+        "KNOWLEDGE",
+        "\\b(webhooks?)\\b"
+      ],
+      [
+        "reconciliation",
+        "KNOWLEDGE",
+        "\\b(reconciliation)\\b"
+      ],
+      [
+        "statistics",
+        "KNOWLEDGE",
+        "\\b(settlement)\\b"
+      ],
+      [
+        "api",
+        "KNOWLEDGE",
+        "\\b(api|apis|http|status codes?)\\b"
+      ],
+      [
+        "security",
+        "KNOWLEDGE",
+        "\\b(authentication|authorization|csrf|jwt|security|access tokens?)\\b"
+      ],
+      [
+        "orchestration",
+        "KNOWLEDGE",
+        "\\b(orchestration)\\b"
+      ],
+      [
+        "lifecycle",
+        "KNOWLEDGE",
+        "\\b(lifecycle|payments?)\\b"
+      ]
+    ]
+  },
+  "version": "PHASE691",
+  "policies": {
+    "api": [
+      "PM-KB-API",
+      "Payment API boundaries",
+      "authorized",
+      "Payment APIs check access and validate each request. Reusing the same idempotency key preserves the original request; an HTTP response does not confirm bank settlement."
+    ],
+    "security": [
+      "PM-KB-SECURITY",
+      "Payment API security",
+      "authorization",
+      "Signing in identifies the caller; access checks determine which records and actions are permitted. Chat cannot change access, perform transactions or disclose credentials."
+    ],
+    "orchestration": [
+      "PM-KB-ORCHESTRATION",
+      "Payment orchestration",
+      "orchestration",
+      "Payment orchestration coordinates payment creation, gateway selection and outcome tracking. A timeout is an unresolved outcome, not a confirmed failure or bank settlement."
+    ],
+    "webhook": [
+      "PM-KB-WEBHOOK",
+      "Webhook confirmation and recovery",
+      "Webhook recovery",
+      "Webhook confirmation needs matching event and gateway records. A successful payment or received event alone does not prove recovery or bank settlement."
+    ],
+    "reconciliation": [
+      "PM-KB-RECONCILIATION",
+      "Settlement reconciliation",
+      "gateway ledger",
+      "Reconciliation checks gateway records without sending another payment. A recorded resolution can explain recovery; the current status alone cannot establish that history."
+    ],
+    "lifecycle": [
+      "PM-KB-LIFECYCLE",
+      "Payment lifecycle",
+      "Payments can be CREATED",
+      "Payments begin as created, move to processing, and then reach a confirmed successful or failed outcome. The current status alone cannot establish a previous timeout."
+    ],
+    "failure": [
+      "PM-KB-FAILURE",
+      "Payment failure reasons",
+      "FAILED",
+      "A failed status records a payment outcome, but does not explain its underlying cause. Supporting gateway or investigation records are needed."
+    ],
+    "timeout": [
+      "PM-KB-TIMEOUT",
+      "Gateway timeout and unknown outcomes",
+      "TIMEOUT",
+      "A gateway timeout means the outcome is not yet confirmed. Check the existing payment and reconciliation records before attempting another payment."
+    ],
+    "refunds": [
+      "PM-KB-REFUNDS",
+      "Partial and full refunds",
+      "refund",
+      "Only successful recorded refunds count towards the refunded total. Complete refund history is needed to confirm the remaining amount, and eligibility must be checked before proceeding. Recorded refunds do not confirm bank arrival."
+    ],
+    "idempotency": [
+      "PM-KB-IDEMPOTENCY",
+      "Idempotency and duplicate-payment prevention",
+      "idempotency",
+      "An idempotency key identifies a specific request. Repeating the same request returns its existing result; changing that request with the same key causes a conflict. Do not replace a key just because an outcome is uncertain."
+    ],
+    "routing": [
+      "PM-KB-ROUTING",
+      "Simulated gateway routing",
+      "INR",
+      "For payment links, INR payments support UPI or cards through simulated Razorpay. USD supports cards through simulated Stripe; USD with UPI is not supported. Existing legacy payment rules are unchanged."
+    ],
+    "links": [
+      "PM-KB-LINKS",
+      "Payment links",
+      "ACTIVE",
+      "Creating a payment link does not create a payment. Links may expire or be cancelled, but an unresolved attempt must be checked first. A paid link cannot be paid again."
+    ],
+    "checkout": [
+      "PM-KB-CHECKOUT",
+      "Customer checkout",
+      "UNCERTAIN",
+      "Checkout uses the amount and method fixed by the payment link and requires explicit confirmation. An unresolved attempt blocks another payment. A receipt does not confirm bank settlement."
+    ],
+    "eligibility": [
+      "PM-KB-ELIGIBILITY",
+      "Merchant eligibility",
+      "ACTIVE",
+      "Payments require an active account, verified business and active membership. Eligibility and access are checked for each action; statements made in chat cannot grant access."
+    ],
+    "statistics": [
+      "PM-KB-STATISTICS",
+      "Recorded statistics",
+      "currency",
+      "Overall totals need complete records, not just a recent preview. Keep currencies and payment/refund statuses separate. Recorded amounts are not available balances, profit or bank settlement."
+    ]
+  },
+  "limitations": [
+    "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+    "Java alone must enforce ownership, current eligibility and financial actions.",
+    "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+    "Previous assistant messages are not authoritative financial evidence."
+  ],
+  "followUps": [
+    "What does the current payment status mean?",
+    "How much was refunded?",
+    "What does the gateway evidence show?"
+  ],
+  "explainSuffix": " Recorded information may change; verify current details before taking action.",
+  "knowledge": [
+    {
+      "documentId": "PM-KB-LIFECYCLE",
+      "chunkId": "PM-KB-LIFECYCLE:000:a5e6d8329184",
+      "title": "Payment lifecycle",
+      "sources": [
+        "ai-service/knowledge_base/lifecycle.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-TIMEOUT",
+      "chunkId": "PM-KB-TIMEOUT:000:5d47f4ece619",
+      "title": "Gateway timeout and unknown outcomes",
+      "sources": [
+        "ai-service/knowledge_base/timeout.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-WEBHOOK",
+      "chunkId": "PM-KB-WEBHOOK:000:69ace23bcb66",
+      "title": "Webhook confirmation and recovery",
+      "sources": [
+        "ai-service/knowledge_base/webhook.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-RECONCILIATION",
+      "chunkId": "PM-KB-RECONCILIATION:000:a9fa40e9733e",
+      "title": "Settlement reconciliation",
+      "sources": [
+        "ai-service/knowledge_base/reconciliation.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-FAILURE",
+      "chunkId": "PM-KB-FAILURE:000:e03800250e31",
+      "title": "Payment failure reasons",
+      "sources": [
+        "ai-service/knowledge_base/failure.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-REFUNDS",
+      "chunkId": "PM-KB-REFUNDS:000:79c633e9c940",
+      "title": "Partial and full refunds",
+      "sources": [
+        "ai-service/knowledge_base/refunds.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-IDEMPOTENCY",
+      "chunkId": "PM-KB-IDEMPOTENCY:000:52cda09e51bd",
+      "title": "Idempotency and duplicate-payment prevention",
+      "sources": [
+        "ai-service/knowledge_base/idempotency.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-COMMUNICATION",
+      "chunkId": "PM-KB-COMMUNICATION:000:1ed99e4f7367",
+      "title": "Customer communication and safe next actions",
+      "sources": [
+        "ai-service/knowledge_base/communication.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-API",
+      "chunkId": "PM-KB-API:000:968052919380",
+      "title": "Payment API boundaries",
+      "sources": [
+        "ai-service/knowledge_base/api.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-SECURITY",
+      "chunkId": "PM-KB-SECURITY:000:8519effb9053",
+      "title": "Payment API security",
+      "sources": [
+        "ai-service/knowledge_base/security.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-ORCHESTRATION",
+      "chunkId": "PM-KB-ORCHESTRATION:000:c6055be5388b",
+      "title": "Payment orchestration",
+      "sources": [
+        "ai-service/knowledge_base/orchestration.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-ROUTING",
+      "chunkId": "PM-KB-ROUTING:000:ac2bd822e63c",
+      "title": "Simulated gateway routing",
+      "sources": [
+        "ai-service/knowledge_base/routing.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-LINKS",
+      "chunkId": "PM-KB-LINKS:000:5d75364e1bbf",
+      "title": "Payment links",
+      "sources": [
+        "ai-service/knowledge_base/links.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-CHECKOUT",
+      "chunkId": "PM-KB-CHECKOUT:000:1d3512b007f4",
+      "title": "Customer checkout",
+      "sources": [
+        "ai-service/knowledge_base/checkout.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-ELIGIBILITY",
+      "chunkId": "PM-KB-ELIGIBILITY:000:6f474b391efd",
+      "title": "Merchant eligibility",
+      "sources": [
+        "ai-service/knowledge_base/eligibility.md"
+      ]
+    },
+    {
+      "documentId": "PM-KB-STATISTICS",
+      "chunkId": "PM-KB-STATISTICS:000:dc183abb7220",
+      "title": "Recorded statistics",
+      "sources": [
+        "ai-service/knowledge_base/statistics.md"
+      ]
+    }
+  ]
+}

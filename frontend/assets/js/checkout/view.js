@@ -1,0 +1,17 @@
+import { createCheckout } from './model.js';
+// No portal/auth imports. All server values enter the DOM through textContent.
+const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n;};
+export function mountCheckout(root,token,options={}){
+ let model,previousStatus;function render(s){let focusTarget=null;root.replaceChildren();root.setAttribute('aria-busy',String(s.busy||s.pending));const title=el('h1','PayMesh AI · Customer checkout');title.tabIndex=-1;root.append(title,el('p','SIMULATED PAYMENT — No real money, card numbers, CVV, bank credentials, UPI PIN or OTP.','alert alert-info'));const feedback=el('p',s.message);feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');root.append(feedback);
+  const button=(label,action,disabled=false)=>{const b=el('button',label,'btn btn-primary m-1');b.type='button';b.disabled=disabled||s.pending||s.busy;b.addEventListener('click',action);return b;};
+  if(s.data){const r=s.data,card=el('section',undefined,'surface p-3');const pairs=el('dl');for(const [label,value] of [['Merchant',r.merchantName],['Order reference',r.orderReference||'Not supplied'],['Description',r.description||'Not supplied'],['Amount',r.amount+' '+r.currency],['Fixed payment method',r.paymentMethod],['Link expiry',r.expiresAt],['Checkout status',r.checkoutStatus],['Payment status',r.paymentStatus||'Not submitted']])pairs.append(el('dt',label),el('dd',value));card.append(pairs,el('p',r.simulationNotice));
+   if(r.checkoutStatus==='PAID'){const receiptTitle=el('h2','Simulated payment receipt');receiptTitle.tabIndex=-1;if(previousStatus!=='PAID')focusTarget=receiptTitle;card.append(receiptTitle,el('p','Receipt: '+r.receiptReference),el('p','Confirmed at: '+r.paidAt),el('p','This receipt does not establish bank settlement or money arrival.'));}
+   if(r.canPay&&!s.uncertain){let select=null;if(r.simulationChoices.length){card.append(el('p','PRIVATE LOCAL DEMO ONLY — outcome controls are not available in public/production deployments.','alert alert-warning'));const label=el('label','Simulated gateway interaction');select=el('select');select.className='form-select';for(const choice of r.simulationChoices){const o=el('option',choice);o.value=choice;select.append(o);}select.disabled=s.pending;label.append(select);card.append(label);}card.append(button('Pay — review simulated payment',()=>model.review(select?.value||null)));}
+   if(['PROCESSING','UNCERTAIN'].includes(r.checkoutStatus))card.append(el('p','An accepted attempt is unresolved. Checking status does not retry the gateway. A timed-out client does not stop server work.'));
+   if(s.review){const review=el('section',undefined,'alert alert-warning');review.setAttribute('aria-label','Confirm simulated payment');const reviewTitle=el('h2','Confirm simulated payment');reviewTitle.tabIndex=-1;focusTarget=reviewTitle;review.append(reviewTitle,el('p',`${r.merchantName} · ${r.amount} ${r.currency} · ${r.paymentMethod}`),button(s.uncertain?'Retry exact retained submission':'Confirm Pay (simulation only)',()=>void model.pay(true)),button('Back to checkout',()=>model.cancelReview(),s.uncertain));card.append(review);}
+   root.append(card);
+  }
+  root.append(button('Check current status',()=>void model.load()));previousStatus=s.data?.checkoutStatus;if(focusTarget&&!s.pending&&!s.busy)focusTarget.focus();
+ }
+ model=createCheckout(token,render,options);render(model.state());return {start:model.load,dispose:model.dispose};
+}

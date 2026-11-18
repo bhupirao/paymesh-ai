@@ -1,0 +1,4138 @@
+[
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is payment orchestration?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payment orchestration coordinates payment creation, gateway selection and outcome tracking. A timeout is an unresolved outcome, not a confirmed failure or bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is payment orchestration?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payment orchestration coordinates payment creation, gateway selection and outcome tracking. A timeout is an unresolved outcome, not a confirmed failure or bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Explain payment status in general",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payments begin as created, move to processing, and then reach a confirmed successful or failed outcome. The current status alone cannot establish a previous timeout.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Explain payment status in general",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payments begin as created, move to processing, and then reach a confirmed successful or failed outcome. The current status alone cannot establish a previous timeout.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How do APIs authenticate?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payment APIs check access and validate each request. Reusing the same idempotency key preserves the original request; an HTTP response does not confirm bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How do APIs authenticate?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payment APIs check access and validate each request. Reusing the same idempotency key preserves the original request; an HTTP response does not confirm bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is a JWT?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Signing in identifies the caller; access checks determine which records and actions are permitted. Chat cannot change access, perform transactions or disclose credentials.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is a JWT?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Signing in identifies the caller; access checks determine which records and actions are permitted. Chat cannot change access, perform transactions or disclose credentials.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is gateway routing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "For payment links, INR payments support UPI or cards through simulated Razorpay. USD supports cards through simulated Stripe; USD with UPI is not supported. Existing legacy payment rules are unchanged.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is gateway routing?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "For payment links, INR payments support UPI or cards through simulated Razorpay. USD supports cards through simulated Stripe; USD with UPI is not supported. Existing legacy payment rules are unchanged.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Show my latest payment",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Show my latest payment",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Show recent payments",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Show recent payments",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Show daily payment trends",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Show daily payment trends",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the weather?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the weather?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why is the sky blue?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why is the sky blue?",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Explain this payment status",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as successful. This is a simulated payment record, not confirmation of bank settlement.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Explain this payment status",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as successful. This is a simulated payment record, not confirmation of bank settlement.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Summarize payment statistics",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Complete payment and refund totals are unavailable. A few recent records cannot establish the overall totals.",
+      "intent": "STATISTICS",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Summarize payment statistics",
+      "history": [
+        {
+          "role": "user",
+          "content": "What is the current payment status?"
+        },
+        {
+          "role": "assistant",
+          "content": "Untrusted previous financial claims."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Complete payment and refund totals are unavailable. A few recent records cannot establish the overall totals.",
+      "intent": "STATISTICS",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the current payment status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "CREATED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as created. Processing has not started.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why did it fail?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "CREATED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as created. The records do not establish a previous failure or its cause.",
+      "intent": "PAYMENT_FAILURE",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Is it still processing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "CREATED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as created, rather than processing. The records do not confirm a previous timeout or recovery.",
+      "intent": "PROCESSING",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the current payment status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "PROCESSING",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as processing. The outcome is not yet confirmed; avoid making a duplicate payment.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why did it fail?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "PROCESSING",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as processing. The records do not establish a previous failure or its cause.",
+      "intent": "PAYMENT_FAILURE",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Is it still processing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "PROCESSING",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is still processing. A timeout does not mean it failed. Check its status before attempting another payment.",
+      "intent": "PROCESSING",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the current payment status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as successful. This is a simulated payment record, not confirmation of bank settlement.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why did it fail?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as successful. The records do not establish a previous failure or its cause.",
+      "intent": "PAYMENT_FAILURE",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Is it still processing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as successful, rather than processing. The records do not confirm a previous timeout or recovery.",
+      "intent": "PROCESSING",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the current payment status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "FAILED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as failed. The underlying reason is not established.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why did it fail?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "FAILED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as failed. The available records do not establish the reason.",
+      "intent": "PAYMENT_FAILURE",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Is it still processing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "FAILED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as failed, rather than processing. The records do not confirm a previous timeout or recovery.",
+      "intent": "PROCESSING",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the current payment status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "CANCELLED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as cancelled. No future payment outcome is guaranteed.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why did it fail?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "CANCELLED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as cancelled. The records do not establish a previous failure or its cause.",
+      "intent": "PAYMENT_FAILURE",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Is it still processing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "CANCELLED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as cancelled, rather than processing. The records do not confirm a previous timeout or recovery.",
+      "intent": "PROCESSING",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is the current payment status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "REFUNDED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as fully refunded. Recorded refunds do not confirm that funds have reached the bank.",
+      "intent": "PAYMENT_STATUS",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Why did it fail?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "REFUNDED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as fully refunded. The records do not establish a previous failure or its cause.",
+      "intent": "PAYMENT_FAILURE",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Is it still processing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "REFUNDED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment is recorded as fully refunded, rather than processing. The records do not confirm a previous timeout or recovery.",
+      "intent": "PROCESSING",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is api?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payment APIs check access and validate each request. Reusing the same idempotency key preserves the original request; an HTTP response does not confirm bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is security?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Signing in identifies the caller; access checks determine which records and actions are permitted. Chat cannot change access, perform transactions or disclose credentials.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is orchestration?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payment orchestration coordinates payment creation, gateway selection and outcome tracking. A timeout is an unresolved outcome, not a confirmed failure or bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is webhook?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Webhook confirmation needs matching event and gateway records. A successful payment or received event alone does not prove recovery or bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is reconciliation?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Reconciliation checks gateway records without sending another payment. A recorded resolution can explain recovery; the current status alone cannot establish that history.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is lifecycle?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Payments begin as created, move to processing, and then reach a confirmed successful or failed outcome. The current status alone cannot establish a previous timeout.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is failure?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "A failed status records a payment outcome, but does not explain its underlying cause. Supporting gateway or investigation records are needed.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is timeout?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "A gateway timeout means the outcome is not yet confirmed. Check the existing payment and reconciliation records before attempting another payment.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is refunds?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Only successful recorded refunds count towards the refunded total. Complete refund history is needed to confirm the remaining amount, and eligibility must be checked before proceeding. Recorded refunds do not confirm bank arrival.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is idempotency?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "An idempotency key identifies a specific request. Repeating the same request returns its existing result; changing that request with the same key causes a conflict. Do not replace a key just because an outcome is uncertain.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is routing?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "For payment links, INR payments support UPI or cards through simulated Razorpay. USD supports cards through simulated Stripe; USD with UPI is not supported. Existing legacy payment rules are unchanged.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is links?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is checkout?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Checkout uses the amount and method fixed by the payment link and requires explicit confirmation. An unresolved attempt blocks another payment. A receipt does not confirm bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is eligibility?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is statistics?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Overall totals need complete records, not just a recent preview. Keep currencies and payment/refund statuses separate. Recorded amounts are not available balances, profit or bank settlement.",
+      "intent": "KNOWLEDGE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Please refund it now",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "I can explain payment records, but I cannot make payments, issue refunds, change access or share private information. Use the appropriate account action to proceed.",
+      "intent": "UNSUPPORTED",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Do it now",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "I can explain payment records, but I cannot make payments, issue refunds, change access or share private information. Use the appropriate account action to proceed.",
+      "intent": "UNSUPPORTED",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Nonsense unrecognized",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Please select a payment or clarify what you would like to know. Finding the latest payment and daily trends is not available in chat yet.",
+      "intent": "INSUFFICIENT_EVIDENCE",
+      "evidenceReferences": [],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Refund history is unavailable, so the refunded total and remaining eligible amount cannot be confirmed.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What about the gateway?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Gateway information is unavailable. I cannot confirm what happened at the gateway.",
+      "intent": "GATEWAY",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "25.00",
+          "currency": "USD",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [],
+        "refundHistoryComplete": true
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "No refunds have been recorded for this payment. The total refunded amount is $0.00, and $25.00 remains potentially eligible for refund, subject to verification.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "USD",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "0.00",
+          "currency": "USD",
+          "count": null
+        },
+        {
+          "kind": "REMAINING_REFUNDABLE",
+          "amount": "25.00",
+          "currency": "USD",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "25.00",
+          "currency": "USD",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "5.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": true
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "The total refunded amount is $5.00. $20.00 remains potentially eligible for refund, subject to verification.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "USD",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "5.00",
+          "currency": "USD",
+          "count": null
+        },
+        {
+          "kind": "REMAINING_REFUNDABLE",
+          "amount": "20.00",
+          "currency": "USD",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "REFUNDED",
+          "amount": "25.00",
+          "currency": "USD",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "25.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": true
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "The total refunded amount is $25.00. No recorded amount remains eligible for another refund.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "USD",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "25.00",
+          "currency": "USD",
+          "count": null
+        },
+        {
+          "kind": "REMAINING_REFUNDABLE",
+          "amount": "0.00",
+          "currency": "USD",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "25.00",
+          "currency": "USD",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "5.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": false
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Available refund entries show $5.00. The history is incomplete, so the total refunded and remaining eligible amount are unknown.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "USD",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "5.00",
+          "currency": "USD",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "25.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [],
+        "refundHistoryComplete": true
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "No refunds have been recorded for this payment. The total refunded amount is \u20b90.00, and \u20b925.00 remains potentially eligible for refund, subject to verification.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "0.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "REMAINING_REFUNDABLE",
+          "amount": "25.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "25.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "5.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": true
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "The total refunded amount is \u20b95.00. \u20b920.00 remains potentially eligible for refund, subject to verification.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "5.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "REMAINING_REFUNDABLE",
+          "amount": "20.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "REFUNDED",
+          "amount": "25.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "25.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": true
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "The total refunded amount is \u20b925.00. No recorded amount remains eligible for another refund.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "25.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "REMAINING_REFUNDABLE",
+          "amount": "0.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much was refunded?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "25.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "5.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": false
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Available refund entries show \u20b95.00. The history is incomplete, so the total refunded and remaining eligible amount are unknown.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "25.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "5.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Can I refund it again?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "20.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": false
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Available refund entries show \u20b920.00. The history is incomplete, so the total refunded and remaining eligible amount are unknown.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "20.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Summarize payment statistics",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "statistics": [
+          {
+            "ref": "statistics:s0",
+            "kind": "PAYMENT",
+            "currency": "INR",
+            "status": "SUCCESS",
+            "count": 2,
+            "amount": "200.00"
+          }
+        ],
+        "statisticsComplete": false,
+        "statisticsCurrencies": [
+          "INR",
+          "USD"
+        ]
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Available activity entries: INR payments: 2, totalling \u20b9200.00. These are partial subtotals, not complete payment or refund totals.",
+      "intent": "STATISTICS",
+      "evidenceReferences": [
+        "statistics:s0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence.",
+        "Aggregate completeness and scope are supplied by Java, not independently verified by Python.",
+        "Aggregate groups are not confirmed complete; these are supplied-cell subtotals, not full dashboard totals."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "PAYMENT_AGGREGATE",
+          "amount": "200.00",
+          "currency": "INR",
+          "count": 2
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Can I refund it again?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "refunds": [
+          {
+            "ref": "refund:r0",
+            "paymentRef": "payment:selected",
+            "amount": "20.00",
+            "status": "SUCCESS"
+          }
+        ],
+        "refundHistoryComplete": true
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "The total refunded amount is \u20b920.00. \u20b980.00 remains potentially eligible for refund, subject to verification.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected",
+        "refund:r0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "OBSERVED_SUCCESSFUL_REFUNDS",
+          "amount": "20.00",
+          "currency": "INR",
+          "count": null
+        },
+        {
+          "kind": "REMAINING_REFUNDABLE",
+          "amount": "80.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "Summarize payment statistics",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "statistics": [
+          {
+            "ref": "statistics:s0",
+            "kind": "PAYMENT",
+            "currency": "INR",
+            "status": "SUCCESS",
+            "count": 2,
+            "amount": "200.00"
+          }
+        ],
+        "statisticsComplete": true,
+        "statisticsCurrencies": [
+          "INR",
+          "USD"
+        ]
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Recorded activity: INR payments: 2, totalling \u20b9200.00; INR refunds: 0, totalling \u20b90.00; USD payments: 0, totalling $0.00; USD refunds: 0, totalling $0.00. Payment and refund totals are separate for each currency; these are not available balances or bank settlements.",
+      "intent": "STATISTICS",
+      "evidenceReferences": [
+        "statistics:s0"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence.",
+        "Aggregate completeness and scope are supplied by Java, not independently verified by Python."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "PAYMENT_AGGREGATE",
+          "amount": "200.00",
+          "currency": "INR",
+          "count": 2
+        },
+        {
+          "kind": "REFUND_AGGREGATE",
+          "amount": "0.00",
+          "currency": "INR",
+          "count": 0
+        },
+        {
+          "kind": "PAYMENT_AGGREGATE",
+          "amount": "0.00",
+          "currency": "USD",
+          "count": 0
+        },
+        {
+          "kind": "REFUND_AGGREGATE",
+          "amount": "0.00",
+          "currency": "USD",
+          "count": 0
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "ACTIVE",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is active. Eligibility and expiry must be checked before payment.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "PROCESSING",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is processing. An attempt is still processing; do not submit another payment.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "UNCERTAIN",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is unresolved. The outcome is unknown; check the existing attempt before trying again.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "FAILED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is failed. Another attempt requires a confirmed failure and fresh eligibility and expiry checks.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "PAID",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is paid. It cannot be paid again, even if its payment was later refunded.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "CANCELLED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is cancelled. It cannot accept a new payment.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "EXPIRED",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is expired. It cannot accept a new payment.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "What is this checkout status?",
+      "history": [],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        },
+        "checkout": {
+          "ref": "checkout:selected",
+          "status": "UNAVAILABLE",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "This payment link is unavailable. Its eligibility for payment is not confirmed.",
+      "intent": "CHECKOUT",
+      "evidenceReferences": [
+        "checkout:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "CHECKOUT_AMOUNT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  },
+  {
+    "request": {
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "callerRole": "MERCHANT",
+      "question": "How much?",
+      "history": [
+        {
+          "role": "user",
+          "content": "How much was refunded?"
+        },
+        {
+          "role": "assistant",
+          "content": "Refunds are999."
+        }
+      ],
+      "evidence": {
+        "source": "JAVA_AUTHORIZED_SNAPSHOT",
+        "scope": "MERCHANT_OWNED",
+        "collectedAt": "2026-11-15T00:00:00Z",
+        "payment": {
+          "ref": "payment:selected",
+          "status": "SUCCESS",
+          "amount": "100.00",
+          "currency": "INR",
+          "paymentMethod": "UPI"
+        }
+      }
+    },
+    "response": {
+      "evidenceCollectedAt": "2026-11-15T00:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000001",
+      "answer": "Refund history is unavailable, so the refunded total and remaining eligible amount cannot be confirmed.",
+      "intent": "REFUND_SUMMARY",
+      "evidenceReferences": [
+        "payment:selected"
+      ],
+      "knowledgeReferences": [],
+      "limitations": [
+        "Python analyzes supplied evidence; it does not authenticate, authorize or independently fetch Java records.",
+        "Java alone must enforce ownership, current eligibility and financial actions.",
+        "Simulated records do not establish bank debit, settlement, balance, profit or refund arrival.",
+        "Previous assistant messages are not authoritative financial evidence."
+      ],
+      "suggestedFollowUps": [
+        "What does the current payment status mean?",
+        "How much was refunded?",
+        "What does the gateway evidence show?"
+      ],
+      "moneyFacts": [
+        {
+          "kind": "ORIGINAL_PAYMENT",
+          "amount": "100.00",
+          "currency": "INR",
+          "count": null
+        }
+      ],
+      "analysisMode": "DETERMINISTIC",
+      "generationStatus": "DISABLED"
+    }
+  }
+]
