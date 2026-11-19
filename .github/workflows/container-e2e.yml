@@ -41,7 +41,17 @@ jobs:
       - name: Validate Compose and build all images on one ephemeral runner
         run: |
           docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml config --quiet
-          COMPOSE_PARALLEL_LIMIT=1 docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml build --provenance=false --sbom=false java python frontend llama
+          # Runner Compose versions may not expose attestation build flags.
+          # Buildx supports these explicitly; load only single-platform images.
+          for image in java python frontend llama; do
+            case "$image" in
+              java) context="$GITHUB_WORKSPACE/backend"; file="$context/Dockerfile" ;;
+              llama) context="$E2E_DIR/llama-source"; file="$GITHUB_WORKSPACE/deploy/Dockerfile.llama" ;;
+              *) context="$GITHUB_WORKSPACE"; file="$context/deploy/Dockerfile.$image" ;;
+            esac
+            docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
+              --load --tag "bhupirao/paymesh-$image:v1.0.0" --file "$file" "$context"
+          done
       - name: Start five fresh services with bounded readiness
         run: docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml up -d --wait --wait-timeout 240
       - name: Run real disposable-container API E2E
