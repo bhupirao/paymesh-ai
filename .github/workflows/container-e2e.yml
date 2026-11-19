@@ -56,6 +56,7 @@ jobs:
         id: startup
         run: docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml up -d --wait --wait-timeout 240
       - name: Run real disposable-container API E2E
+        id: api_e2e
         run: python3 -B deploy/container_e2e.py
       - name: Publish sanitized test summary only (no registry upload)
         if: always()
@@ -86,6 +87,16 @@ jobs:
           path: |
             ${{ env.E2E_DIR }}/diagnostics/*.log
             ${{ env.E2E_DIR }}/diagnostics/status.json
+          if-no-files-found: warn
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 9
+      - name: Retain sanitized API failure metadata
+        if: ${{ failure() && steps.api_e2e.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-e2e-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.E2E_DIR }}/sanitized-e2e.json
           if-no-files-found: warn
           include-hidden-files: false
           retention-days: 3

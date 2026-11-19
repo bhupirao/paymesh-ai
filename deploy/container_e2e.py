@@ -7,6 +7,39 @@ import json,os,re,subprocess,sys,urllib.request,urllib.error,urllib.parse,uuid
 from pathlib import Path
 from ci_fixture_setup import runner_project
 BASE='http://127.0.0.1:15500'
+SAFE_ACTORS={'UNSPECIFIED','ADMIN','MERCHANT_A','MERCHANT_B','ANONYMOUS','PUBLIC_CHECKOUT'}
+SAFE_RESPONSE_FIELDS={'accessToken','tokenType','expiresAt','expiresIn','roles','accountStatus','status','message','code','error','merchantId','items','total','conversation','turn','turns'}
+SAFE_ERRORS={
+    'Authentication failed':'AUTHENTICATION_FAILED',
+    'Request denied':'REQUEST_DENIED',
+    'Access denied':'ACCESS_DENIED',
+    'Invalid session cookie':'INVALID_SESSION_COOKIE',
+    'Payment service unavailable':'UPSTREAM_UNAVAILABLE',
+    'Check registration fields and password requirements.':'REGISTRATION_INVALID',
+    'Registration could not be completed. Sign in or use different details.':'REGISTRATION_CONFLICT',
+    'Access denied. Check current authorization or current password.':'ACCESS_DENIED',
+    'Unauthorized':'UNAUTHORIZED','Forbidden':'FORBIDDEN','Bad Request':'BAD_REQUEST',
+}
+
+def safe_endpoint(path):
+    path=path.split('?',1)[0]
+    if re.fullmatch(r'/api/v1/auth/(login|register|refresh|logout|logout-all)',path):return path
+    if re.fullmatch(r'/api/v1/(admin|merchant)/(profile|dashboard|merchants|merchant/approve|payments|refunds)',path):return path
+    if path in ('/','/merchant/ai','/admin/ai'):return path
+    if re.fullmatch(r'/api/v1/checkout/[A-Za-z0-9_-]{43}(?:/(status|pay))?',path):return re.sub(r'(?<=checkout/)[A-Za-z0-9_-]{43}','{checkoutToken}',path)
+    if re.fullmatch(r'/api/v1/(?:payments|admin/payments|merchant/payment-links|(?:merchant|admin)/ai/conversations)(?:/[0-9a-f-]{36})?(?:/(?:process|refund|refunds|cancel|messages|rename|delete|ai/chat))?',path):return re.sub(r'[0-9a-f-]{36}','{resourceId}',path)
+    if path in ('/api/v1/merchant/ai/chat','/api/v1/admin/ai/chat'):return path
+    return 'UNRECOGNIZED_ROUTE_OMITTED'
+
+def response_metadata(raw,status):
+    try:value=json.loads(raw)
+    except (ValueError,UnicodeError):return {'responseShape':'NON_JSON','responseErrorCode':'NON_JSON_ERROR' if status>=400 else None}
+    if not isinstance(value,dict):return {'responseShape':'NON_OBJECT','responseErrorCode':None}
+    error=None
+    if status>=400:
+        error=next((SAFE_ERRORS[value[k]] for k in ('message','error','detail') if isinstance(value.get(k),str) and value[k] in SAFE_ERRORS),'UNRECOGNIZED_ERROR_TEXT_OMITTED')
+    return {'responseShape':'OBJECT','responseFields':sorted(SAFE_RESPONSE_FIELDS.intersection(value)),'accessTokenPresent':isinstance(value.get('accessToken'),str) and bool(value['accessToken']),'responseErrorCode':error}
+
 class Failure(Exception):pass
 
 def require(ok,code):
@@ -18,8 +51,11 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):return None
 
 class Session:
-    def __init__(self):
+    def __init__(self,actor='UNSPECIFIED',observer=None):
+        require(actor in SAFE_ACTORS,'INVALID_DIAGNOSTIC_ACTOR');self.actor=actor;self.observer=observer;self.last_request=None
         self.cookies=CookieJar();self.client=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect(),urllib.request.HTTPCookieProcessor(self.cookies));self.token=None
+    def record(self):
+        if self.observer:self.observer(dict(self.last_request))
     def call(self,method,path,body=None,expected=(200,),key=None):
         require(path.startswith('/api/v1/') or path in ('/','/merchant/ai','/admin/ai'),'FIXED_API_PATH_REQUIRED')
         headers={'Accept':'application/json','Origin':BASE}
@@ -28,15 +64,21 @@ class Session:
         if self.token and not path.startswith(('/api/v1/auth/','/api/v1/checkout/')):headers['Authorization']='Bearer '+self.token
         if path.startswith('/api/v1/auth/'):headers['X-PayMesh-CSRF']='1'
         if path.startswith('/api/v1/checkout/'):headers['X-PayMesh-Checkout']='1'
+        self.last_request={'actor':self.actor,'method':method,'endpoint':safe_endpoint(path),'expectedStatuses':list(expected),'actualStatus':None,'bearerAttached':'Authorization' in headers};self.record()
         req=urllib.request.Request(BASE+path,data=None if body is None else json.dumps(body).encode(),headers=headers,method=method)
         try:
-            with self.client.open(req,timeout=55) as response:status=response.status;raw=response.read(524289)
-        except urllib.error.HTTPError as error:status=error.code;raw=error.read(524289)
+            with self.client.open(req,timeout=55) as response:status=response.status;raw=response.read(524289);response_headers=response.headers
+        except urllib.error.HTTPError as error:status=error.code;raw=error.read(524289);response_headers=error.headers
+        self.last_request.update(actualStatus=status)
+        if len(raw)<=524288:self.last_request.update(response_metadata(raw,status))
+        cookie_headers=response_headers.get_all('Set-Cookie',[]) if response_headers is not None else []
+        self.last_request.update(refreshCookieHeaderPresent=any(h.startswith('pm_refresh=') for h in cookie_headers),refreshCookieHeaderHttpOnly=any(h.startswith('pm_refresh=') and '; httponly' in h.lower() for h in cookie_headers));self.record()
         require(status in expected,'UNEXPECTED_HTTP_STATUS_'+str(status));require(len(raw)<=524288,'RESPONSE_TOO_LARGE')
         if path in ('/','/merchant/ai','/admin/ai'):return None
         return json.loads(raw,parse_float=Decimal) if raw else None
     def login(self,login,password):
         result=self.call('POST','/api/v1/auth/login',{'login':login,'password':password})
+        self.last_request.update(refreshCookieStored=any(c.name=='pm_refresh' for c in self.cookies),refreshCookieStoredHttpOnly=any(c.name=='pm_refresh' and c.has_nonstandard_attr('HttpOnly') for c in self.cookies));self.record()
         require(isinstance(result.get('accessToken'),str),'LOGIN_TOKEN_MISSING');self.token=result['accessToken']
         require(any(c.name=='pm_refresh' and c.has_nonstandard_attr('HttpOnly') for c in self.cookies),'HTTPONLY_REFRESH_COOKIE_MISSING')
         return result
@@ -45,14 +87,16 @@ class Suite:
     def __init__(self):
         self.project=runner_project();self.folder=Path(os.environ['RUNNER_TEMP']).resolve()/self.project
         require(os.environ.get('E2E_PROJECT')==self.project,'PROJECT_MISMATCH')
-        self.compose=['docker','compose','--project-name',self.project,'--env-file',str(self.folder/'container.env'),'-f','deploy/compose.yaml'];self.passed=[];self.stage='preflight';self.verify_qwen=os.environ.get('E2E_VERIFY_QWEN')=='true'
+        self.compose=['docker','compose','--project-name',self.project,'--env-file',str(self.folder/'container.env'),'-f','deploy/compose.yaml'];self.passed=[];self.stage='preflight';self.last_request=None;self.verify_qwen=os.environ.get('E2E_VERIFY_QWEN')=='true'
+    def observe_request(self,record):self.last_request=record
+    def session(self,actor):return Session(actor,self.observe_request)
     def command(self,args,data=None):
         r=subprocess.run(args,input=data,capture_output=True,timeout=45)
         require(r.returncode==0,'CONTAINER_OPERATION_FAILED');return r.stdout
     def sql(self,text):
         return self.command(self.compose+['exec','-T','postgres','psql','-X','-U','paymesh_container_user','-d','paymesh_container','-Atq','-v','ON_ERROR_STOP=1'],text.encode()).decode().strip()
     def check(self,name,operation):
-        self.stage=name;operation();self.passed.append(name);print(name+': PASS')
+        self.stage=name;self.last_request=None;operation();self.passed.append(name);print(name+': PASS')
     def identity(self):
         ids=self.command(self.compose+['ps','-q']).decode().split();require(len(ids)==5,'FIVE_CONTAINERS_REQUIRED')
         states=json.loads(self.command(['docker','inspect',*ids]));db=None
@@ -77,9 +121,9 @@ INSERT INTO app_users(user_id,login_normalized,password_hash,enabled,authorizati
 INSERT INTO user_roles(user_id,role_name) VALUES ('11111111-1111-4111-8111-111111111111','ADMIN');
 COMMIT;""")
     def authentication(self):
-        self.admin=Session();self.admin.login('ci-admin@e2e.example.test',(self.folder/'secrets/admin_password').read_text())
+        self.admin=self.session('ADMIN');self.admin.login('ci-admin@e2e.example.test',(self.folder/'secrets/admin_password').read_text())
         self.admin.call('GET','/api/v1/admin/profile');self.admin.call('GET','/api/v1/merchant/dashboard',expected=(403,))
-        anonymous=Session();anonymous.call('GET','/merchant/ai');anonymous.call('GET','/admin/ai');anonymous.call('GET','/api/v1/merchant/dashboard',expected=(401,403))
+        anonymous=self.session('ANONYMOUS');anonymous.call('GET','/merchant/ai');anonymous.call('GET','/admin/ai');anonymous.call('GET','/api/v1/merchant/dashboard',expected=(401,403))
         self.merchants=[];password=(self.folder/'secrets/merchant_password').read_text()
         for letter in ('a','b'):
             login='merchant-'+letter+'@e2e.example.test'
@@ -87,7 +131,7 @@ COMMIT;""")
             require(result['accountStatus']=='PENDING_APPROVAL','REGISTRATION_STATUS')
             rows=self.admin.call('GET','/api/v1/admin/merchants?search='+urllib.parse.quote(login)+'&size=5')['items'];require(len(rows)==1,'MERCHANT_LOOKUP')
             mid=rows[0]['merchantId'];self.admin.call('POST','/api/v1/admin/merchant/approve',{'merchantId':mid,'reviewReference':'CI disposable fixture ownership','ownershipAttested':True})
-            session=Session();session.login(login,password);profile=session.call('GET','/api/v1/merchant/profile');require(profile['merchantId']==mid and profile['accountStatus']=='ACTIVE','MERCHANT_PROFILE')
+            session=self.session('MERCHANT_'+letter.upper());session.login(login,password);profile=session.call('GET','/api/v1/merchant/profile');require(profile['merchantId']==mid and profile['accountStatus']=='ACTIVE','MERCHANT_PROFILE')
             session.call('GET','/api/v1/admin/profile',expected=(403,));self.merchants.append((session,mid))
         self.a,self.mid=self.merchants[0];self.b,_=self.merchants[1]
         refreshed=self.a.call('POST','/api/v1/auth/refresh',{});self.a.token=refreshed['accessToken']
@@ -101,7 +145,7 @@ COMMIT;""")
     def checkout(self):
         link=self.a.call('POST','/api/v1/merchant/payment-links',{'amount':'25.00','currency':'USD','paymentMethod':'CARD','customerReference':'synthetic-order','description':'Disposable checkout fixture','expiryHours':24},expected=(201,),key=str(uuid.uuid4()))
         path=link['checkoutPath'];require(bool(re.fullmatch(r'/checkout/[A-Za-z0-9_-]{43}',path)),'CHECKOUT_PATH')
-        api='/api/v1'+path;customer=Session();view=customer.call('GET',api)
+        api='/api/v1'+path;customer=self.session('PUBLIC_CHECKOUT');view=customer.call('GET',api)
         require(view['checkoutStatus']=='ACTIVE' and money(view['amount'])==Decimal('25.00') and view['currency']=='USD','PUBLIC_CHECKOUT_READ')
         require(not {'paymentId','merchantId','email','userId'}.intersection(view),'PUBLIC_RESPONSE_PRIVACY')
         paid=customer.call('POST',api+'/pay',{'confirmed':True},key=str(uuid.uuid4()));require(paid['checkoutStatus']=='PAID' and paid['paymentStatus']=='SUCCESS','CHECKOUT_SUCCESS')
@@ -139,7 +183,8 @@ COMMIT;""")
         except Exception as error:
             code=str(error) if isinstance(error,Failure) else 'UNEXPECTED_RUNNER_OR_PROTOCOL_ERROR'
             if not re.fullmatch('[A-Z0-9_]{1,80}',code):code='UNCLASSIFIED_FAILURE'
-            result={'success':False,'failureCode':code,'failedStage':self.stage,'checksPassed':self.passed,'modelInferenceRequested':self.verify_qwen,'modelInferenceVerified':False,'dockerHubPublished':False}
+            result={'success':False,'failureCode':code,'lastRequest':self.last_request,'failedStage':self.stage,'checksPassed':self.passed,'modelInferenceRequested':self.verify_qwen,'modelInferenceVerified':False,'dockerHubPublished':False}
+        if not result['success']:print('E2E_FAILURE_DIAGNOSTIC='+json.dumps({'failureCode':result['failureCode'],'lastRequest':result['lastRequest']},sort_keys=True))
         path=self.folder/'sanitized-e2e.json';path.write_text(json.dumps(result,indent=2));path.chmod(0o600)
         print('DISPOSABLE_CONTAINER_API_E2E_PASS' if result['success'] else 'DISPOSABLE_CONTAINER_API_E2E_FAILED_STAGE='+self.stage)
         return 0 if result['success'] else 1
