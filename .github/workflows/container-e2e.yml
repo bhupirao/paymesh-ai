@@ -1,0 +1,75 @@
+name: Disposable container API E2E (no publication)
+on:
+  workflow_dispatch:
+    inputs:
+      verify_qwen:
+        description: Require real synthetic Qwen generation, not fallback
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: disposable-container-e2e
+  cancel-in-progress: false
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      E2E_VERIFY_QWEN: ${{ inputs.verify_qwen }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Offline E2E guard regressions
+        run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - name: Generate runner-only disposable configuration
+        run: python3 -B deploy/ci_fixture_setup.py
+      - name: Fetch pinned llama.cpp source (no model here)
+        run: |
+          git init "$E2E_DIR/llama-source"
+          git -C "$E2E_DIR/llama-source" remote add origin https://github.com/ggml-org/llama.cpp.git
+          git -C "$E2E_DIR/llama-source" fetch --depth=1 origin ec7f3ac9ab33e46b136eb5ab6a76c4d81f57c7f1
+          git -C "$E2E_DIR/llama-source" checkout --detach FETCH_HEAD
+          test "$(git -C "$E2E_DIR/llama-source" rev-parse HEAD)" = ec7f3ac9ab33e46b136eb5ab6a76c4d81f57c7f1
+      - name: Download and checksum Qwen ON RUNNER ONLY
+        run: |
+          curl --fail --location --silent --show-error --max-time 600 --max-filesize 550000000 \
+            --output "$E2E_DIR/qwen.gguf" \
+            https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+          echo "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db  $E2E_DIR/qwen.gguf" | sha256sum --check --status
+          chmod 444 "$E2E_DIR/qwen.gguf"
+      - uses: docker/setup-buildx-action@v4
+      - name: Validate Compose and build all images on one ephemeral runner
+        run: |
+          docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml config --quiet
+          COMPOSE_PARALLEL_LIMIT=1 docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml build --provenance=false --sbom=false java python frontend llama
+      - name: Start five fresh services with bounded readiness
+        run: docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml up -d --wait --wait-timeout 240
+      - name: Run real disposable-container API E2E
+        run: python3 -B deploy/container_e2e.py
+      - name: Publish sanitized test summary only (no registry upload)
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os,json
+          from pathlib import Path
+          folder=os.environ.get('E2E_DIR')
+          report=Path(folder)/'sanitized-e2e.json' if folder else None
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
+              out.write('## Disposable container API E2E\n')
+              if report and report.is_file():
+                  value=json.loads(report.read_text())
+                  out.write('```json\n'+json.dumps(value,indent=2)+'\n```\n')
+              else:
+                  out.write('NOT VERIFIED: startup or preparation did not reach API E2E.\n')
+              out.write('No Docker Hub publication. Native browser is not tested; model success requires explicit report evidence.\n')
+          PY
+      - name: Stop only this ephemeral Compose project; do not delete volumes
+        if: always()
+        run: |
+          if test -n "${E2E_PROJECT:-}" && test -f "${E2E_ENV:-}"; then
+            case "$E2E_PROJECT" in
+              "paymesh-e2e-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT")
+                docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml down --timeout 30 ;;
+              *) echo 'Unknown project: cleanup skipped'; exit 1 ;;
+            esac
+          fi
