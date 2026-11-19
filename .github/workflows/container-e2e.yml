@@ -53,6 +53,7 @@ jobs:
               --load --tag "bhupirao/paymesh-$image:v1.0.0" --file "$file" "$context"
           done
       - name: Start five fresh services with bounded readiness
+        id: startup
         run: docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.yaml up -d --wait --wait-timeout 240
       - name: Run real disposable-container API E2E
         run: python3 -B deploy/container_e2e.py
@@ -73,6 +74,22 @@ jobs:
                   out.write('NOT VERIFIED: startup or preparation did not reach API E2E.\n')
               out.write('No Docker Hub publication. Native browser is not tested; model success requires explicit report evidence.\n')
           PY
+      - name: Capture bounded redacted startup failure diagnostics
+        if: ${{ failure() && steps.startup.outcome == 'failure' }}
+        timeout-minutes: 3
+        run: python3 -B deploy/capture_failure_diagnostics.py
+      - name: Retain redacted startup diagnostics
+        if: ${{ failure() && steps.startup.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: startup-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.E2E_DIR }}/diagnostics/*.log
+            ${{ env.E2E_DIR }}/diagnostics/status.json
+          if-no-files-found: warn
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 9
       - name: Stop only this ephemeral Compose project; do not delete volumes
         if: always()
         run: |
