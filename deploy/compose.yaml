@@ -38,7 +38,7 @@ services:
       SPRING_SQL_INIT_MODE: never
       PAYMESH_JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private
       PAYMESH_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
-      PAYMESH_JWT_ISSUER: paymesh-container
+      PAYMESH_JWT_ISSUER: https://paymesh-container.example.invalid
       PAYMESH_JWT_AUDIENCE: paymesh-container-ui
       PAYMESH_DEMO_GATEWAY_TIMEOUT_ENABLED: 'false'
       PAYMESH_SETTLEMENT_SCHEDULING_ENABLED: 'false'
