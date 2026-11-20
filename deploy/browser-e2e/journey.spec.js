@@ -1,0 +1,263 @@
+import { test, expect, ORIGIN, accounts, credential, newPage, login, responseFor, body, modelSuccess, requireSafe, noOverflow, openHistory, safeDialog, exactAmount, logout } from './fixtures.js';
+
+test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
+  const sessions = await Promise.all([newPage(browser), newPage(browser), newPage(browser), newPage(browser)]);
+  const [merchant, other, admin, customer] = sessions;
+  let merchantId, paymentId;
+  try {
+    await test.step('MERCHANT_REGISTRATION_VALIDATION', async () => {
+      for (const [actor, key] of [[merchant,'a'],[other,'b']]) {
+        const p = actor.page;
+        await p.goto('/merchant/signup');
+        await p.locator('#signup-check').click();
+        await expect(p.locator('#signup-feedback')).toContainText('Check the highlighted fields');
+        for (const [field,value] of Object.entries({firstName:'Browser',lastName:key,businessName:`Disposable browser ${key}`,email:accounts[key],mobile:'+12025550101'})) await p.locator(`#signup-${field}`).fill(value);
+        await p.locator('#signup-businessType').selectOption('COMPANY');
+        await p.locator('#signup-country').selectOption('US');
+        const password=credential('merchant_password');
+        await p.locator('#signup-password').fill(password);
+        await p.locator('#signup-confirmPassword').fill(password);
+        await p.locator('#signup-terms').check();
+        const reply=responseFor(p,'POST','/api/v1/auth/register');
+        await p.locator('#signup-check').click();
+        requireSafe((await body(await reply,[201])).accountStatus==='PENDING_APPROVAL','REGISTRATION_STATUS');
+        await expect(p.locator('#signup-success-link')).toBeVisible();
+      }
+      await login(merchant.page,'merchant','a');
+      await expect(merchant.page.locator('#pending-onboarding')).toBeVisible();
+      await logout(merchant.page);
+      await expect(merchant.page.locator('#login-form')).toBeVisible();
+    });
+    await test.step('ADMIN_LOGIN_AND_NATIVE_APPROVAL', async () => {
+      await login(admin.page,'admin','admin');
+      for (const key of ['a','b']) {
+        const p=admin.page;
+        await p.goto('/admin/merchants');
+        const root=p.locator('#admin-workspace');
+        await expect(root.getByRole('button',{name:'Apply / Look up',exact:true})).toBeEnabled();
+        await root.getByLabel('Search',{exact:true}).fill(accounts[key]);
+        const list=responseFor(p,'GET','/api/v1/admin/merchants');
+        await root.getByRole('button',{name:'Apply / Look up',exact:true}).click();
+        const rows=(await body(await list)).items;
+        requireSafe(rows.length===1,'UNIQUE_PENDING_MERCHANT_REQUIRED');
+        if(key==='a') merchantId=rows[0].merchantId;
+        await root.getByRole('row').filter({hasText:accounts[key]}).getByRole('button',{name:'Open',exact:true}).click();
+        await root.getByLabel('External ownership review reference').fill('CI-BROWSER-OWNERSHIP');
+        await root.getByLabel('I attest that ownership was reviewed for this exact Merchant.').check();
+        await root.getByRole('button',{name:'Review approve',exact:true}).click();
+        const dialog=root.getByRole('dialog',{name:'Confirm Merchant administration'});
+        await expect(dialog).toBeFocused();
+        await dialog.getByRole('button',{name:'Cancel review',exact:true}).click();
+        await expect(dialog).toHaveCount(0);
+        await root.getByLabel('External ownership review reference').fill('CI-BROWSER-OWNERSHIP');
+        await root.getByLabel('I attest that ownership was reviewed for this exact Merchant.').check();
+        await root.getByRole('button',{name:'Review approve',exact:true}).click();
+        const approved=responseFor(p,'POST','/api/v1/admin/merchant/approve');
+        await root.getByRole('dialog').getByRole('button',{name:'Confirm approve',exact:true}).click();
+        await body(await approved);
+        await expect(root.getByLabel('External ownership review reference')).toHaveCount(0);
+      }
+      await login(merchant.page,'merchant','a');
+      await login(other.page,'merchant','b');
+      await expect(merchant.page.locator('#pending-onboarding')).toBeHidden();
+    });
+    await test.step('DASHBOARD_SESSION_AND_ROLE_PROTECTION', async () => {
+      const p=merchant.page;
+      await expect(p.locator('#merchant-workspace')).toBeVisible();
+      await p.reload();
+      await expect(p.locator('#merchant-workspace')).toBeVisible();
+      await p.setViewportSize({width:375,height:812});await noOverflow(p);
+      await p.setViewportSize({width:1440,height:1000});
+      await p.goto('/admin/dashboard');
+      await expect(p.locator('#login-form')).toBeVisible();
+      await expect(p.locator('#admin-workspace')).toBeHidden();
+      await p.goto('/merchant/dashboard');
+      await expect(p.locator('#merchant-workspace')).toBeVisible();
+      await admin.page.goto('/merchant/dashboard');
+      await expect(admin.page.locator('#merchant-workspace')).toBeHidden();
+      await admin.page.goto('/admin/dashboard');
+      await expect(admin.page.locator('#admin-workspace')).toBeVisible();
+      await admin.page.setViewportSize({width:375,height:812});await noOverflow(admin.page);
+      await admin.page.setViewportSize({width:1440,height:1000});
+    });
+    await test.step('PAYMENT_CREATION_PROCESSING_AND_LIST', async () => {
+      const p=merchant.page;
+      await p.locator('#nav-create').click();
+      await expect(p.locator('#create-form')).toBeVisible();
+      for(const [id,value] of [['merchant-id',merchantId],['create-amount','13.25'],['customer-id','browser-synthetic-order'],['payment-method','UPI']]) await p.locator('#'+id).fill(value);
+      await p.locator('#create-currency').selectOption('INR');
+      await p.locator('#review-create').click();
+      await expect(p.locator('#creation-review')).toBeVisible();
+      await expect(p.locator('#creation-review')).toContainText('13.25');
+      const created=responseFor(p,'POST','/api/v1/payments');
+      await p.locator('#confirm-create').click();
+      const payment=await body(await created,[201]);paymentId=payment.paymentId;
+      requireSafe(payment.status==='CREATED'&&String(payment.amount)==='13.25','CREATED_PAYMENT_CONTRACT');
+      await expect(p.locator('#created-result')).toContainText(paymentId);
+      await p.locator('#created-process').click();
+      await expect(p.locator('#process-panel')).toBeVisible();
+      await p.locator('#cancel-process').click();
+      await expect(p.locator('#process-panel')).toBeHidden();
+      await p.locator('#created-process').click();
+      const processed=responseFor(p,'POST',`/api/v1/payments/${paymentId}/process`);
+      await p.locator('#confirm-process').click();
+      requireSafe((await body(await processed)).status==='SUCCESS','PAYMENT_PROCESSING_STATUS');
+      await p.goto('/merchant/payments');
+      await expect(p.locator('#merchant-workspace').getByRole('row').filter({hasText:paymentId})).toContainText('SUCCESS');
+      await p.locator('#merchant-workspace').getByRole('row').filter({hasText:paymentId}).getByRole('button',{name:'Open payment',exact:true}).click();
+      await expect(p.locator('#details-id')).toHaveText(paymentId);
+    });
+    await test.step('MERCHANT_OWNERSHIP_ISOLATION', async () => {
+      const p=other.page;
+      await p.locator('#nav-lookup').click();
+      await p.locator('#payment-id').fill(paymentId);
+      const denied=responseFor(p,'GET',`/api/v1/payments/${paymentId}`);
+      await p.locator('#lookup-submit').click();
+      requireSafe([403,404].includes((await denied).status()),'OWNERSHIP_DENIAL_REQUIRED');
+      await expect(p.locator('#lookup-feedback')).toContainText(/not accessible|not permitted/i);
+      await expect(p.locator('#payment-result')).toBeEmpty();
+    });
+    await test.step('NATIVE_INVESTIGATION_REAL_QWEN', async () => {
+      const p=merchant.page;
+      await expect(p.locator('#investigate-button')).toBeEnabled();
+      const reply=responseFor(p,'POST',`/api/v1/payments/${paymentId}/investigate`);
+      await p.locator('#investigate-button').click();
+      const result=modelSuccess(await body(await reply));
+      requireSafe(result.paymentId===paymentId,'INVESTIGATION_SCOPE');
+      await expect(p.locator('#investigation-result')).toBeVisible();
+      await expect(p.locator('#investigation-result')).toContainText('Customer view');
+    });
+    await test.step('PARTIAL_AND_FULL_REFUND_UI', async () => {
+      const p=merchant.page;
+      for(const [amount,total] of [['3.25','3.25'],['10.00','13.25']]) {
+        await p.locator('#refresh-details').click();
+        await expect(p.locator('#refund-amount')).toBeEnabled();
+        await p.locator('#refund-amount').fill(amount);
+        await p.locator('#refund-form').getByRole('button',{name:'Review refund',exact:true}).click();
+        await expect(p.locator('#refund-review')).toBeFocused();
+        const refunded=responseFor(p,'POST',`/api/v1/payments/${paymentId}/refund`);
+        await p.locator('#confirm-refund').click();
+        const result=await body(await refunded,[201]);
+        requireSafe(result.status==='SUCCESS'&&exactAmount(result.amount)===amount,'REFUND_RECORD');
+        await expect(p.locator('#confirmed-refund')).toBeVisible();
+        await expect(p.locator('#refund-summary')).toContainText(total+' INR');
+      }
+      await expect(p.locator('#details-overview-result')).toContainText('REFUNDED');
+      await expect(p.locator('#refund-summary')).toContainText('0.00 INR');
+      await p.setViewportSize({width:375,height:812});await noOverflow(p);
+      await p.setViewportSize({width:1440,height:1000});
+    });
+    await test.step('PAYMENT_LINK_AND_CUSTOMER_CHECKOUT', async () => {
+      const p=merchant.page;
+      await p.goto('/merchant/payment-links/create');
+      const root=p.locator('#merchant-links-workspace');
+      await root.getByLabel('Currency',{exact:true}).selectOption('USD');
+      await root.getByLabel('Amount',{exact:true}).fill('25.00');
+      await root.getByLabel('Payment method',{exact:true}).selectOption('CARD');
+      await root.getByLabel('Customer / order reference (optional)').fill('browser-checkout');
+      await root.getByRole('button',{name:'Review link',exact:true}).click();
+      const created=responseFor(p,'POST','/api/v1/merchant/payment-links');
+      await root.getByRole('button',{name:'Confirm create payment link',exact:true}).click();
+      await body(await created,[201]);
+      const url=await root.getByLabel('Customer checkout URL (simulation only)').inputValue();
+      requireSafe(new URL(url).origin===ORIGIN&&/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(new URL(url).pathname),'FIXED_CHECKOUT_URL');
+      const c=customer.page;
+      await c.goto(url);
+      await expect(c.getByRole('heading',{name:'PayMesh AI · Customer checkout'})).toBeVisible();
+      await expect(c.getByText('25.00 USD',{exact:true})).toBeVisible();
+      await c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click();
+      await expect(c.getByRole('heading',{name:'Confirm simulated payment',exact:true})).toBeFocused();
+      await c.getByRole('button',{name:'Back to checkout',exact:true}).click();
+      await c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click();
+      const paid=responseFor(c,'POST',/^\/api\/v1\/checkout\/[A-Za-z0-9_-]{43}\/pay$/);
+      await c.getByRole('button',{name:'Confirm Pay (simulation only)',exact:true}).click();
+      requireSafe((await body(await paid)).checkoutStatus==='PAID','PAID_CHECKOUT_REQUIRED');
+      await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
+      await c.reload();
+      await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
+      await c.setViewportSize({width:375,height:812});await noOverflow(c);
+    });
+    await test.step('MERCHANT_ADMIN_CHAT_AND_SAVED_HISTORY', async () => {
+      for(const [actor,role] of [[merchant,'merchant'],[admin,'admin']]) {
+        const p=actor.page;let submissions=0;
+        const observe=req=>{if(req.method()==='POST'&&/^\/api\/v1\/(merchant|admin)\/ai\/(chat|conversations(?:\/[^/]+\/messages)?)$/.test(new URL(req.url()).pathname))submissions++;};
+        p.on('request',observe);
+        try {
+          await p.goto(`/${role}/ai`);
+          const root=p.locator(`#${role}-ai-workspace`),composer=root.getByLabel('Your payment-domain question');
+          await expect(composer).toBeEnabled();requireSafe(submissions===0,'AUTOMATIC_AI_REQUEST');
+          await composer.fill('What is idempotency?');
+          await composer.press('Shift+Enter');
+          await expect(composer).toHaveValue('What is idempotency?\n');
+          requireSafe(submissions===0,'SHIFT_ENTER_SENT_QUESTION');
+          const reply=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/messages$`));
+          if(role==='merchant')await composer.press('Enter');else await root.getByRole('button',{name:'Send question',exact:true}).click();
+          modelSuccess(await body(await reply));
+          await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
+          requireSafe((await root.locator('.ai-assistant .ai-answer').innerText()).trim().length>0,'VISIBLE_ANSWER_REQUIRED');
+          await openHistory(root);
+          await root.getByLabel('Conversation title',{exact:true}).fill(`Browser ${role} history`);
+          const renamed=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/rename$`));
+          await root.getByRole('button',{name:'Rename saved conversation',exact:true}).click();
+          await body(await renamed);
+          await expect(root.locator('.conversation-history')).toContainText(`Current: Browser ${role} history`);
+          await root.getByLabel('Search owned conversation titles').fill(`Browser ${role} history`);
+          const ownList=responseFor(p,'GET',`/api/v1/${role}/ai/conversations`);
+          await root.getByRole('button',{name:'Load saved conversations',exact:true}).click();
+          requireSafe((await body(await ownList)).total===1,'OWNED_HISTORY_SEARCH');
+          const selected=root.getByRole('button',{name:`Browser ${role} history · Current`,exact:true});
+          await expect(selected).toBeVisible();
+          const historyRead=responseFor(p,'GET',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/messages$`));
+          await safeDialog(p,()=>selected.click());
+          requireSafe((await body(await historyRead)).total===1,'SAVED_TURN_REQUIRED');
+          await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
+          const before=submissions;
+          await p.reload();
+          await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
+          requireSafe(submissions===before,'RESTORE_INVOKED_MODEL');
+          if(role==='merchant') {
+            await other.page.goto('/merchant/ai');
+            const otherRoot=other.page.locator('#merchant-ai-workspace');
+            await expect(otherRoot.getByLabel('Your payment-domain question')).toBeEnabled();await openHistory(otherRoot);
+            const otherList=responseFor(other.page,'GET','/api/v1/merchant/ai/conversations');
+            await otherRoot.getByRole('button',{name:'Load saved conversations',exact:true}).click();
+            requireSafe((await body(await otherList)).total===0,'OTHER_MERCHANT_PRIVATE_HISTORY');
+            await expect(otherRoot.locator('.conversation-history')).toContainText('0 accessible matches');
+            await expect(otherRoot.getByRole('button',{name:/Browser merchant history/})).toHaveCount(0);
+            // Admin has its own private history while this Merchant turn exists.
+            await admin.page.goto('/admin/ai');
+            const adminRoot=admin.page.locator('#admin-ai-workspace');
+            await expect(adminRoot.getByLabel('Your payment-domain question')).toBeEnabled();
+            await openHistory(adminRoot);
+            const adminList=responseFor(admin.page,'GET','/api/v1/admin/ai/conversations');
+            await adminRoot.getByRole('button',{name:'Load saved conversations',exact:true}).click();
+            requireSafe((await body(await adminList)).total===0,'ADMIN_MERCHANT_HISTORY_ISOLATION');
+            await expect(adminRoot.getByRole('button',{name:/Browser merchant history/})).toHaveCount(0);
+          }
+          await p.setViewportSize({width:375,height:812});await noOverflow(p);
+          await p.setViewportSize({width:1440,height:1000});
+          await openHistory(root);
+          const deleted=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/delete$`));
+          await safeDialog(p,()=>root.getByRole('button',{name:'Delete saved conversation',exact:true}).click());
+          await body(await deleted);
+          await expect(root.locator('.conversation-history')).toContainText('No saved conversation selected');
+          await expect(root.locator('.ai-assistant')).toHaveCount(0);
+        } finally {p.off('request',observe);}
+      }
+    });
+    await test.step('CROSS_TAB_LOGOUT_AND_PROTECTED_ROUTE', async () => {
+      const p=merchant.page,tab=await merchant.context.newPage();
+      await tab.goto('/merchant/dashboard');await expect(tab.locator('#merchant-workspace')).toBeVisible();
+      await logout(p);
+      await expect(p.locator('#login-form')).toBeVisible();
+      await expect(tab.locator('#login-form')).toBeVisible();
+      await expect(tab.locator('#merchant-workspace')).toBeHidden();
+      await tab.goto('/merchant/ai');await expect(tab.locator('#login-form')).toBeVisible();
+      await tab.close();
+      await logout(admin.page);await expect(admin.page.locator('#login-form')).toBeVisible();
+      await logout(other.page);await expect(other.page.locator('#login-form')).toBeVisible();
+    });
+  } finally {
+    for(const actor of sessions) await actor.context.close();
+  }
+});

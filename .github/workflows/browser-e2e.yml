@@ -1,0 +1,88 @@
+name: Native Chromium published-image E2E (no publication)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-browser-published-e2e
+  cancel-in-progress: false
+jobs:
+  browser:
+    if: github.repository == 'bhupirao/paymesh-ai' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      E2E_VERIFY_QWEN: 'true'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Offline deployment and browser-policy regressions
+        run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - name: Prepare unique hosted-runner fixtures
+        run: python3 -B deploy/release_artifact_e2e.py fixtures
+      - name: Check Node and disk admission
+        run: |
+          node -e 'const major=Number(process.versions.node.split(".")[0]); if (![22,24].includes(major)) process.exit(1)'
+          available=$(df -Pk "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
+          test "$available" -ge 8388608 || { echo 'INSUFFICIENT_BROWSER_RUNNER_DISK'; exit 1; }
+      - name: Install locked test dependency and Chromium on runner only
+        working-directory: deploy/browser-e2e
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx --no-install playwright install --with-deps chromium
+      - name: Download one checksum-verified Qwen model on runner only
+        run: |
+          curl --fail --location --silent --show-error --max-time 600 --max-filesize 550000000 \
+            --output "$E2E_DIR/qwen.gguf" \
+            https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+          echo "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db  $E2E_DIR/qwen.gguf" | sha256sum --check --status
+          chmod 444 "$E2E_DIR/qwen.gguf"
+      - name: Validate and pull existing digest-pinned images only
+        run: |
+          docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.release-verify.yaml config --quiet
+          docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.release-verify.yaml pull
+      - name: Start fresh five-service stack without builds
+        id: startup
+        run: docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.release-verify.yaml up -d --no-build --pull never --wait --wait-timeout 240
+      - name: Verify published identity and bootstrap synthetic Admin only
+        run: python3 -B deploy/browser_bootstrap.py seed
+      - name: Execute native Chromium UI journey
+        id: browser_tests
+        working-directory: deploy/browser-e2e
+        run: npm test
+      - name: Verify final disposable business counts
+        run: python3 -B deploy/browser_bootstrap.py final
+      - name: Capture bounded redacted service diagnostics before cleanup
+        if: ${{ failure() && steps.startup.outcome != 'skipped' && env.E2E_DIR != '' }}
+        timeout-minutes: 3
+        run: python3 -B deploy/release_artifact_e2e.py diagnostics
+      - name: Retain allowlisted sanitized browser evidence only
+        if: ${{ always() && env.E2E_DIR != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: native-browser-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.E2E_DIR }}/sanitized-browser.json
+            ${{ env.E2E_DIR }}/sanitized-browser-bootstrap.json
+            ${{ env.E2E_DIR }}/sanitized-browser-final.json
+            ${{ env.E2E_DIR }}/diagnostics/*.log
+            ${{ env.E2E_DIR }}/diagnostics/status.json
+          if-no-files-found: warn
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 9
+      - name: Guarded project-only teardown and volume absence verification
+        if: ${{ always() && env.E2E_DIR != '' }}
+        timeout-minutes: 5
+        run: python3 -B deploy/release_artifact_e2e.py cleanup
+      - name: Retain cleanup success or fixed-code failure evidence
+        if: ${{ always() && env.E2E_DIR != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: native-browser-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.E2E_DIR }}/sanitized-cleanup.json
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 3
+          compression-level: 9
