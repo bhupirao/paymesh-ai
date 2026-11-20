@@ -45,7 +45,7 @@ class ImageWorkflowTests(unittest.TestCase):
         self.assertIs(inputs['disposable_e2e_verified']['default'],False)
         self.assertEqual(set(event),{'workflow_dispatch'})
     def test_capacity_and_authorization_gates_unchanged(self):
-        self.assertEqual(self.workflow['permissions'],{'contents':'read'})
+        self.assertEqual(self.workflow['permissions'],{'contents':'read','actions':'read'})
         self.assertEqual(self.job['strategy']['max-parallel'],1)
         self.assertIn('dockerhub-publication',self.job['environment'])
         gate=next(s['run'] for s in self.workflow['jobs']['validate']['steps'] if s.get('name')=='Validate destinations and publishing gate')

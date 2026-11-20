@@ -20,11 +20,14 @@ on:
         type: boolean
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: container-images-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   validate:
+    outputs:
+      source_sha: ${{ steps.release.outputs.source_sha }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -42,6 +45,15 @@ jobs:
           assert re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}',os.environ['RELEASE_TAG']), 'Invalid tag'
           assert os.environ['PUBLISH'] != 'true' or os.environ['E2E'] == 'true', 'Disposable E2E approval missing'
           PY
+      - name: Verify tested source and protected publication environment
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NAMESPACE: ${{ inputs.namespace }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          PUBLISH: ${{ inputs.publish_images }}
+          E2E: ${{ inputs.disposable_e2e_verified }}
+        run: python3 -B deploy/publication_gate.py
       - name: Offline container adapter regression
         run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
       - name: Validate actual Compose schema (configuration only)
@@ -71,6 +83,13 @@ jobs:
         image: [java, python, frontend, llama]
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate.outputs.source_sha }}
+          persist-credentials: false
+      - name: Verify checked-out release identity
+        env:
+          EXPECTED_SOURCE: ${{ needs.validate.outputs.source_sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
       - name: Fetch exact small-model server source, never model weights
         if: matrix.image == 'llama'
         run: |
@@ -95,6 +114,14 @@ jobs:
           echo "context=$context" >> "$GITHUB_OUTPUT"
           echo "file=$file" >> "$GITHUB_OUTPUT"
           echo "tag=$NAMESPACE/paymesh-$COMPONENT:$tag" >> "$GITHUB_OUTPUT"
+      - name: Check protected credential presence without displaying values
+        if: inputs.publish_images
+        env:
+          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test "$USERNAME" = bhupirao
+          test -n "$TOKEN"
       - name: Docker Hub authentication (only after approval)
         if: inputs.publish_images
         uses: docker/login-action@v4
@@ -102,11 +129,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: docker/build-push-action@v7
+        id: build
         with:
           context: ${{ steps.spec.outputs.context }}
           file: ${{ steps.spec.outputs.file }}
           platforms: linux/amd64
           tags: ${{ steps.spec.outputs.tag }}
+          labels: org.opencontainers.image.revision=${{ needs.validate.outputs.source_sha }}
           push: ${{ inputs.publish_images }}
           load: ${{ !inputs.publish_images }}
           # --load uses the single-platform Docker exporter. Attestations require
@@ -119,3 +148,23 @@ jobs:
         env:
           IMAGE: ${{ steps.spec.outputs.tag }}
         run: test "$(docker image inspect --format '{{.Architecture}}' "$IMAGE")" = amd64
+      - name: Verify published digest and pull by immutable reference
+        if: inputs.publish_images
+        env:
+          IMAGE: ${{ steps.spec.outputs.tag }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          SOURCE: ${{ needs.validate.outputs.source_sha }}
+        run: |
+          docker buildx imagetools inspect "$IMAGE" --format '{{json .Manifest}}' > "$RUNNER_TEMP/published-manifest.json"
+          python3 - <<'PY_VERIFY'
+          import json,os,re
+          from pathlib import Path
+          digest=os.environ['DIGEST']
+          assert re.fullmatch('sha256:[0-9a-f]{64}',digest), 'Missing image digest'
+          manifest=json.loads((Path(os.environ['RUNNER_TEMP'])/'published-manifest.json').read_text())
+          assert manifest['digest']==digest, 'Registry tag digest mismatch'
+          PY_VERIFY
+          docker pull --platform linux/amd64 "$IMAGE@$DIGEST"
+          test "$(docker image inspect --format '{{.Architecture}}' "$IMAGE@$DIGEST")" = amd64
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$IMAGE@$DIGEST")" = "$SOURCE"
+          printf '\nVerified `%s@%s` (linux/amd64), source `%s`, E2E run 44652430877.\n' "$IMAGE" "$DIGEST" "$SOURCE" >> "$GITHUB_STEP_SUMMARY"
