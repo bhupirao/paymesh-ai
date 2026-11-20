@@ -49,7 +49,7 @@ Budget: Ubuntu 24.04 x64 public GitHub-hosted runner; container memory limits to
 | Check | Required result |
 |---|---|
 | Artifact identity | Exactly five healthy project containers; each application uses its locked manifest reference, matching local image config identity, source label and linux/amd64 platform |
-| Database | Fresh project volume, exactly 14 successful versioned migrations, no failed migration, empty initial fixture tables |
+| Database | Fresh project volume, exactly 14 successful versioned migrations, no failed migration, empty initial business tables; exact migration-seeded ADMIN/MERCHANT role reference data |
 | Authentication/authorization | Registration → pending → attested Admin approval → ACTIVE login; HttpOnly refresh cookie; refresh/logout; wrong-role and Merchant A/B denial |
 | Frontend connectivity | HTTP Merchant/Admin routes and real API traffic through the fixed frontend proxy |
 | Payment/idempotency | INR 13.25 creation; same idempotency key returns same payment; processing reaches SUCCESS; cross-Merchant denial |
@@ -81,4 +81,14 @@ API success does not establish rendered UI interaction, screenshots, mobile 375p
 
 Run the deployment unittest suite, AST syntax checks, Ruby/Psych YAML parsing, JSON parsing and `git diff --check`. Docker Compose configuration validation requires Docker CLI with Compose; when unavailable locally, record it as not executed. The workflow performs real Compose validation on the runner before pulling/starting. No offline result may be reported as published-artifact runtime success.
 
-Verified during implementation: all **121 deployment tests passed**, including **25 new published-artifact tests**. Python AST, YAML/JSON parsing, the targeted seven-file publication scanner and whitespace checks passed. Existing source-build and publication workflow bytes were unchanged. Docker CLI/Compose was unavailable locally, so real Compose config validation and all runtime/container/model checks were **not executed**. No Java, application Python or frontend suite was rerun because their application sources were unchanged.
+Verified during implementation: all **125 deployment tests passed**, including **29 published-artifact tests**. Python AST, YAML/JSON parsing, the targeted seven-file publication scanner and whitespace checks passed. Existing source-build and publication workflow bytes were unchanged. Docker CLI/Compose was unavailable locally, so real Compose config validation and all runtime/container/model checks were **not executed**. No Java, application Python or frontend suite was rerun because their application sources were unchanged.
+
+## First published-artifact run: confirmed seed-check correction
+
+Run `44787046258` used harness commit `3f56cca2d5612fd35922985cc4f6309983e73a0a`. All five containers were healthy, identity checks passed, and the failure-only PostgreSQL log retained `relation "gateway_transactions" does not exist` with statement `SELECT count(*) FROM gateway_transactions;`. V4 creates `payment_gateway_transactions`; the release harness now checks that actual table. This was a verification SQL naming defect, not a demonstrated application or migration failure.
+
+A second source-confirmed assumption in the new blanket empty-table check would reject V8's intentional `roles` reference rows. The corrected check requires exactly `ADMIN` and `MERCHANT` before excluding `roles` and Flyway history from its all-business-table scan. Extra/missing roles fail closed, as does any populated business table. Admin bootstrap still runs only after these checks. The successful source-built harness did not contain either new assumption and remains unchanged.
+
+The failed operation was Compose `exec -T postgres psql -X -U paymesh_container_user -d paymesh_container -Atq -v ON_ERROR_STOP=1`, with the failing SELECT provided through standard input. The Compose project was `paymesh-e2e-44787046258-1`, using its runner-temp `container.env` and `deploy/compose.release-verify.yaml` from the checked-out workspace. The workflow process exited 1; the inner psql/Compose exit code and stderr were captured in memory but discarded by the inherited command helper, so their exact historical values cannot be recovered from these artifacts. The PostgreSQL server error independently establishes the failed statement.
+
+No additional generic diagnostic layer is necessary to establish this cause. If a different container operation fails later, a narrowly scoped follow-up can record a fixed operation category, target service, numeric exit code and allowlisted PostgreSQL error category. It must never log stdin, raw SQL, command arguments containing credentials, or arbitrary stderr. This correction performs no retry, skips no check, and does not claim that the remaining runtime stages have passed.

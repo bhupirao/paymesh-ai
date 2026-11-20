@@ -115,13 +115,17 @@ class ReleaseSuite(Suite):
     def seed(self):
         require(self.sql("SELECT count(*) FROM flyway_schema_history WHERE success AND version IS NOT NULL;") == '14', 'EXACT_V14_REQUIRED')
         require(self.sql("SELECT count(*) FROM flyway_schema_history WHERE NOT success;") == '0', 'FAILED_MIGRATION')
-        for table in ('ai_conversations', 'ai_conversation_messages', 'ai_conversation_requests', 'ai_conversation_creations', 'gateway_transactions', 'webhook_events'):
+        for table in ('ai_conversations', 'ai_conversation_messages', 'ai_conversation_requests', 'ai_conversation_creations', 'payment_gateway_transactions', 'webhook_events'):
             require(self.sql('SELECT count(*) FROM '+table+';') == '0', 'EMPTY_RELEASE_DATABASE_REQUIRED')
+        # V8 intentionally seeds reference roles, not accounts or assignments.
+        # Validate that exact baseline before excluding it from business rows.
+        require(self.sql("SELECT role_name FROM roles ORDER BY role_name;") == 'ADMIN\nMERCHANT',
+                'REFERENCE_ROLE_BASELINE_MISMATCH')
         self.sql("""BEGIN READ ONLY;
 DO $$ DECLARE t record; populated boolean; BEGIN
   FOR t IN SELECT table_schema,table_name FROM information_schema.tables
            WHERE table_schema='public' AND table_type='BASE TABLE'
-             AND table_name<>'flyway_schema_history'
+             AND table_name NOT IN ('flyway_schema_history','roles')
   LOOP
     EXECUTE format('SELECT EXISTS(SELECT 1 FROM %I.%I)',t.table_schema,t.table_name) INTO populated;
     IF populated THEN RAISE EXCEPTION 'CI_EMPTY_DATABASE_REQUIRED'; END IF;

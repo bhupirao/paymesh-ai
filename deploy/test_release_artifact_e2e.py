@@ -219,11 +219,62 @@ class ApiCoverageTests(unittest.TestCase):
         s.command.assert_called_once();s.sql.assert_not_called()
 
     def test_exact_migration_and_empty_tables_before_seed(self):
-        s=self.suite();s.sql=Mock(side_effect=['14','0']+['0']*6+[''])
+        s=self.suite();s.sql=Mock(side_effect=['14','0']+['0']*6+['ADMIN\nMERCHANT',''])
         with patch.object(r.Suite,'seed') as seed:s.seed();seed.assert_called_once()
-        self.assertEqual(s.sql.call_count,9)
+        self.assertEqual(s.sql.call_count,10)
         self.assertIn("BEGIN READ ONLY",s.sql.call_args.args[0])
         self.assertIn("information_schema.tables",s.sql.call_args.args[0])
+
+    def test_seed_queries_use_actual_migration_table_names(self):
+        # Counts must execute against the migration inventory, not a mock that
+        # returns zero for any misspelled relation. No external database used.
+        import re
+        import sqlite3
+        migrations=ROOT/'backend/src/main/resources/db/migration'
+        names=set()
+        for migration in migrations.glob('V*.sql'):
+            names.update(re.findall(r'CREATE TABLE\s+(\w+)',migration.read_text(),re.I))
+        names.add('flyway_schema_history')
+        db=sqlite3.connect(':memory:')
+        try:
+            for name in names:db.execute('CREATE TABLE '+name+' (fixture INTEGER)')
+            s=self.suite();queries=[]
+            def sql(text):
+                queries.append(text)
+                if text.startswith('SELECT role_name'):return 'ADMIN\nMERCHANT'
+                if 'BEGIN READ ONLY' in text:return ''
+                if text.startswith('SELECT count(*) FROM flyway_schema_history'):
+                    return '0' if 'NOT success' in text else '14'
+                return str(db.execute(text).fetchone()[0])
+            s.sql=sql
+            with patch.object(r.Suite,'seed') as seed:s.seed();seed.assert_called_once()
+            self.assertIn('SELECT count(*) FROM payment_gateway_transactions;',queries)
+            with self.assertRaises(sqlite3.OperationalError):db.execute('SELECT count(*) FROM gateway_transactions;')
+        finally:db.close()
+
+    def test_reference_roles_must_match_exact_migration_seed(self):
+        migration=(ROOT/'backend/src/main/resources/db/migration/V8__authentication_and_merchant_memberships.sql').read_text()
+        self.assertIn("INSERT INTO roles (role_name) VALUES ('ADMIN'), ('MERCHANT');",migration)
+        for roles in ('', 'ADMIN', 'MERCHANT', 'ADMIN\nMERCHANT\nUNEXPECTED', 'ADMIN\nADMIN\nMERCHANT'):
+            s=self.suite();s.sql=Mock(side_effect=['14','0']+['0']*6+[roles])
+            with self.subTest(roles=roles),patch.object(r.Suite,'seed') as seed:
+                with self.assertRaisesRegex(r.Failure,'REFERENCE_ROLE_BASELINE_MISMATCH'):s.seed()
+                seed.assert_not_called()
+                self.assertEqual(s.sql.call_count,9)
+
+    def test_only_validated_reference_data_excluded_from_empty_scan(self):
+        s=self.suite();s.sql=Mock(side_effect=['14','0']+['0']*6+['ADMIN\nMERCHANT',''])
+        with patch.object(r.Suite,'seed'):s.seed()
+        statement=s.sql.call_args.args[0]
+        self.assertIn("table_name NOT IN ('flyway_schema_history','roles')",statement)
+        self.assertIn("IF populated THEN RAISE EXCEPTION 'CI_EMPTY_DATABASE_REQUIRED'",statement)
+        self.assertEqual(s.sql.call_args_list[-2].args[0], 'SELECT role_name FROM roles ORDER BY role_name;')
+
+    def test_nonempty_business_table_blocks_admin_bootstrap(self):
+        s=self.suite();s.sql=Mock(side_effect=['14','0']+['0']*6+['ADMIN\nMERCHANT',r.Failure('CONTAINER_OPERATION_FAILED')])
+        with patch.object(r.Suite,'seed') as seed:
+            with self.assertRaises(r.Failure):s.seed()
+            seed.assert_not_called()
 
     def test_extra_migration_blocks_seed(self):
         s=self.suite();s.sql=Mock(return_value='15')
