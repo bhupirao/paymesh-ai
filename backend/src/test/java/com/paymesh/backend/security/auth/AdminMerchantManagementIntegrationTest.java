@@ -72,6 +72,18 @@ class AdminMerchantManagementIntegrationTest extends BusinessJwtTestSupport {
         assertEquals(1,audits.findByEventTypeAndResourceId("MERCHANT_APPROVE",p.merchantId()).size());
         assertEquals(1,jdbc.queryForObject("SELECT count(*) FROM merchant_memberships WHERE user_id=?",Integer.class,p.id()));
     }
+    @Test void disposableApprovalReferenceRejectsSpacesAndAcceptsBoundedIdentifier()throws Exception{
+        var p=pending();
+        assertEquals(400,code(action(admin,p,"approve",Map.of("ownershipAttested",true,"reviewReference","CI disposable fixture ownership"))));
+        assertEquals("PENDING_APPROVAL",jdbc.queryForObject("SELECT account_status FROM app_users WHERE user_id=?",String.class,p.id()));
+        assertFalse(jdbc.queryForObject("SELECT verified FROM merchants WHERE merchant_id=?",Boolean.class,p.merchantId()));
+        assertFalse(jdbc.queryForObject("SELECT active FROM merchant_memberships WHERE user_id=?",Boolean.class,p.id()));
+        assertEquals(0,audits.findByEventTypeAndResourceId("MERCHANT_APPROVE",p.merchantId()).size());
+        assertEquals(200,code(action(admin,p,"approve",Map.of("ownershipAttested",true,"reviewReference","CI-DISPOSABLE-FIXTURE-OWNERSHIP"))));
+        assertEquals("ACTIVE",jdbc.queryForObject("SELECT account_status FROM app_users WHERE user_id=?",String.class,p.id()));
+        assertEquals("CI-DISPOSABLE-FIXTURE-OWNERSHIP",jdbc.queryForObject("SELECT review_reference FROM merchant_administration WHERE merchant_id=?",String.class,p.merchantId()));
+        assertEquals(1,audits.findByEventTypeAndResourceId("MERCHANT_APPROVE",p.merchantId()).size());
+    }
     @Test void rejectionRequiresBoundedReasonAndIsTerminal()throws Exception{
         var p=pending();assertEquals(400,code(action(admin,p,"reject",Map.of("reason"," "))));
         assertEquals(400,code(action(admin,p,"reject",Map.of("reason","x".repeat(501)))));

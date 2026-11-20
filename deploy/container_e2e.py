@@ -162,7 +162,7 @@ COMMIT;""")
             result=anonymous.call('POST','/api/v1/auth/register',{'firstName':'CI','lastName':letter,'businessName':'Disposable '+letter,'email':login,'mobile':'+12025550101','businessType':'COMPANY','country':'US','password':password,'confirmPassword':password,'terms':True},expected=(201,))
             require(result['accountStatus']=='PENDING_APPROVAL','REGISTRATION_STATUS')
             rows=self.admin.call('GET','/api/v1/admin/merchants?search='+urllib.parse.quote(login)+'&size=5')['items'];require(len(rows)==1,'MERCHANT_LOOKUP')
-            mid=rows[0]['merchantId'];self.admin.call('POST','/api/v1/admin/merchant/approve',{'merchantId':mid,'reviewReference':'CI disposable fixture ownership','ownershipAttested':True})
+            mid=rows[0]['merchantId'];self.admin.call('POST','/api/v1/admin/merchant/approve',{'merchantId':mid,'reviewReference':'CI-DISPOSABLE-FIXTURE-OWNERSHIP','ownershipAttested':True})
             session=self.session('MERCHANT_'+letter.upper());session.login(login,password);profile=session.call('GET','/api/v1/merchant/profile');require(profile['merchantId']==mid and profile['accountStatus']=='ACTIVE','MERCHANT_PROFILE')
             session.call('GET','/api/v1/admin/profile',expected=(403,));self.merchants.append((session,mid))
         self.a,self.mid=self.merchants[0];self.b,_=self.merchants[1]
