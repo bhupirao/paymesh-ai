@@ -8,6 +8,8 @@ PayMesh AI is a full-stack portfolio project built around a **Java payment backe
 
 Built to demonstrate Java backend architecture, transaction safety, Spring Security, PostgreSQL concurrency and practical GenAI integration on modest local hardware.
 
+**Source-available portfolio; not open source.** See [Copyright and permitted access](#copyright-and-permitted-access) before using project-authored code.
+
 [Architecture](#architecture) · [Features](#implemented-features) · [Workflows](#user-workflows) · [AI design](#ai-investigation-and-conversations) · [Setup](#local-development) · [Testing](#testing-and-verification) · [Docker](#docker-and-github-actions) · [Documentation](#documentation)
 
 ## The problem
@@ -31,7 +33,7 @@ PayMesh brings those concerns into one application: explicit payment states, dat
 | Conversations | Owner/role/context-scoped saved history, restoration, title search, pagination, rename and deletion |
 | Sessions | Short-lived access tokens, persistent refresh sessions, Remember Me, logout-all and cross-tab account switching |
 
-**Current status:** V1–V14 migrations and the application features above are implemented. The operator reports successful local activation, Qwen inference, Merchant/Admin browser E2E and payment-link/checkout/status testing. These local results do not establish production readiness or container E2E. Remote Docker build validation and Docker Hub publication remain pending verified success.
+**Current status:** V1–V14 and the features above are implemented. The complete isolated Java suite passed 415 tests. All eight hosted disposable container API E2E stages passed on `cefa7df83a5bf16d011e82041c95e2d93b9c637b`, including actual Qwen inference. Native browser E2E is not yet completed. Docker Hub images are not yet published; public GitHub visibility remains separately gated. No production deployment is claimed.
 
 ## Technology stack
 
@@ -189,25 +191,26 @@ Run the Java harness from a shell without inherited application datasource/profi
 
 The four application containers share a network namespace to preserve existing loopback-only service boundaries. PostgreSQL uses a separate private endpoint and a new persistent volume. Only the frontend is published on `127.0.0.1:15500`; the container adapter validates the browser Origin before translating it to Java's fixed private local Origin. Existing host services and PostgreSQL data are not attached.
 
-The new container database starts independently and applies V1–V14. It does not copy local accounts: a complete authenticated disposable E2E still needs explicitly provisioned synthetic fixtures. This Compose setup is local development infrastructure, not public HTTPS deployment.
+The container database starts independently and applies V1–V14. It does not copy local accounts. The hosted disposable E2E provisions synthetic fixtures in a fresh isolated volume and has passed all eight stages, including actual Qwen inference. This Compose setup is local development infrastructure, not public HTTPS deployment.
 
 - [Backend CI](.github/workflows/backend-ci.yml): isolated PostgreSQL regression tests, packaging, Compose configuration checks and a backend image build.
 - [Manual image workflow](.github/workflows/container-images.yml): sequential remote builds for all four application images, build-only defaults, architecture checks and a separately gated Docker Hub publication path.
 
-Build-only uses a single-platform Docker exporter with provenance/SBOM attestations disabled for local runner loading; registry publication retains provenance. The exporter fix is committed, but a successful remote rebuild is not yet verified here. Docker Hub publication and container E2E are also unverified. Source publication is complete; no production deployment is claimed.
+Build-only uses a single-platform Docker exporter with provenance/SBOM attestations disabled for local runner loading; registry publication retains provenance. Remote builds and the [eight-stage disposable container API E2E](https://github.com/bhupirao/paymesh-ai/actions/runs/44652430877) passed on source `cefa7df83a5bf16d011e82041c95e2d93b9c637b`, with actual Qwen inference verified. Native browser E2E is not yet completed. Docker Hub images are not yet published; no production deployment is claimed. The [controlled publication guide](deploy/DOCKERHUB-V1-PUBLICATION.md) retains the tested source pin and requires protected environment approval. GitHub Actions dependencies are pinned to reviewed immutable commits.
 
 ## Testing and verification
 
-These are **recorded results from separate scoped runs**, not a newly executed combined total:
+These are **recorded results from separate scoped runs**, not a newly executed combined total. This readiness update reruns only offline deployment/workflow tests:
 
 | Scope | Recorded result | Evidence |
 | --- | --- | --- |
-| Complete isolated Java suite | 412 passed | [AI reliability audit](frontend/AI-CHAT-RELIABILITY-AUDIT.md) |
+| Complete isolated Java suite | 415 passed; zero failures, errors or skips | Isolated full-suite run after the chat wording test correction at [`cefa7df83`](https://github.com/bhupirao/paymesh-ai/commit/cefa7df83a5bf16d011e82041c95e2d93b9c637b); not rerun for these documentation/workflow changes |
 | Complete Python suite | 454 passed | [Customer-wording report](frontend/AI-CHAT-CUSTOMER-WORDING-REPORT.md) |
 | Frontend | 1,620 checks: 1,563 mocked JS assertions + 57 proxy/security tests | [Customer-wording report](frontend/AI-CHAT-CUSTOMER-WORDING-REPORT.md) |
-| Container/workflow preparation | 26 offline tests passed | [Workflow regression tests](deploy/test_image_workflow.py) and deployment tests |
-| Local browser/model workflows | Operator-reported success for Merchant/Admin AI and payment-link/checkout/status flows | Local verification; no new claim of exhaustive browser or security coverage |
-| Remote images / container E2E / Docker Hub | Success not yet verified | Pending remote build and disposable-container validation |
+| Container/workflow preparation | 96 offline tests passed | [Workflow regression tests](deploy/test_image_workflow.py) and deployment tests; newly executed for public-release preparation |
+| Hosted disposable container API E2E | All eight stages passed; actual Qwen inference verified | [Run 44652430877](https://github.com/bhupirao/paymesh-ai/actions/runs/44652430877), source `cefa7df83a5bf16d011e82041c95e2d93b9c637b`; synthetic accounts and fresh PostgreSQL volume |
+| Native browser E2E | Not yet completed | API E2E does not drive a browser or establish responsive/visual behavior |
+| Docker Hub publication | Images not yet published | Separate protected publication approval remains required |
 
 ## Known limitations
 
@@ -235,4 +238,12 @@ No product screenshots are currently committed. This README includes no generate
 | Historical evidence limitations | [Session/recovery report](frontend/PHASE-6.7.3-SESSIONS-PASSWORD-RECOVERY-REPORT.md) · [Admin/lifecycle closeout](frontend/PHASE-6.7.4-ADMIN-DASHBOARD-MERCHANT-MANAGEMENT-REPORT.md) |
 | Containers and publication | [Container guide](deploy/README.md) · [Publication plan](deploy/PUBLICATION-PLAN.md) |
 
-Phase reports preserve the state and evidence available when written. Their older activation-pending statements are historical; this README separates current implemented capabilities, operator-reported local verification and deployment work that remains unverified.
+Phase reports preserve the state and evidence available when written. Their older activation-pending statements are historical; this README separates current implemented capabilities, verified API/model checks and remaining native-browser/publication work.
+
+## Copyright and permitted access
+
+Copyright © 2026 bhupirao. All rights reserved for project-authored code.
+
+PayMesh AI is source-available for public portfolio viewing and technical evaluation; it is **not open source**. No general license is granted to use, modify, redistribute, create derivative works from or commercially exploit project-authored code. Obtain separate written permission for such uses, except where rights are provided by applicable law or GitHub's Terms of Service.
+
+Public visibility does not prevent copying or remove GitHub-permitted viewing and platform forking rights. Third-party components retain their applicable licenses and copyright notices; this notice does not restrict rights granted by those third-party licenses.

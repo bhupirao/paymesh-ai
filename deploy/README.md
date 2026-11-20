@@ -1,10 +1,17 @@
 # PayMesh isolated containers and image publication
 
-Status: source preparation/offline validation complete; **Docker builds, startup,
-container E2E and registry publication NOT executed**. Docker, Colima/Podman and
-GitHub CLI are not installed/available on the inspected host. Git origin is https://github.com/bhupirao/paymesh-ai.git; the source checkout
-remains on unborn `main`. Namespace bhupirao and v1.0.0 tags are confirmed; actual
-publication still requires approval.
+Status: remote builds and all **eight disposable container API E2E stages passed**
+in [run 44652430877](https://github.com/bhupirao/paymesh-ai/actions/runs/44652430877)
+on source `cefa7df83a5bf16d011e82041c95e2d93b9c637b`. Actual Qwen inference was
+verified with `modelInferenceRequested=true` and `modelInferenceVerified=true`.
+The complete isolated Java suite separately passed **415 tests**. These are
+recorded results, not newly rerun application suites for this readiness update.
+**Native browser E2E is not yet completed. Docker Hub images are not yet published.**
+
+Repository: `bhupirao/paymesh-ai`, branch `main`. Public visibility and Docker Hub
+publication each require separate explicit approval. Docker, Colima/Podman and
+GitHub CLI remain unavailable on the inspected Mac; builds/E2E run on GitHub-hosted
+Linux runners without attaching local PostgreSQL data, protected files or models.
 
 ## Architecture
 
@@ -17,13 +24,15 @@ The llama context excludes local build directories, Git objects and model files.
 
 Java/Python/llama/frontend share Java's network namespace to preserve existing
 loopback-only AI validation and the fixed frontend upstream. PostgreSQL has its own
-private network endpoint and a NEW named volume `paymesh-containers_container_pgdata`.
+private internal-network endpoint and a NEW named volume `paymesh-containers_container_pgdata`.
+The shared application namespace also uses an edge bridge for host port publication;
+PostgreSQL remains attached only to the internal database network.
 No database port is published. No host PostgreSQL URL, data directory or volume is
 mounted. Flyway V1–V14 applies ONLY to this new disposable container database; host
 Flyway/configuration/data is untouched. Do not import host dumps or credentials.
 Only frontend port **127.0.0.1:15500** is published (local host services remain on
-5500/18080/8000/8082). Images include five health checks; actual readiness remains
-untested until a Docker runtime is available.
+5500/18080/8000/8082). Compose defines five health checks; the hosted disposable API E2E verified
+container health and API workflows. This is not native browser E2E evidence.
 
 Local HTTP cookie policy is preserved, not relaxed: Java uses development profile,
 loopback 18080 and its existing fixed port-5500 Origin. The container edge checks
@@ -117,7 +126,8 @@ containers together; no independent rolling-Java replacement is promised.
 
 ## Remote build and publication
 
-Read `PUBLICATION-PLAN.md`. The manual `container-images.yml` workflow defaults to
+Use [the current controlled v1.0.0 guide](DOCKERHUB-V1-PUBLICATION.md);
+`PUBLICATION-PLAN.md` records earlier preparation. The manual `container-images.yml` workflow defaults to
 build-only. After the exact GitHub URL/branch/files are approved and published,
 Actions → Container images → Run workflow → approved namespace/tag → publish OFF.
 If GitHub CLI is installed and authenticated later, equivalent build-only dispatch:
@@ -152,8 +162,10 @@ Build/image architecture checks alone are insufficient. Verify in the NEW databa
 - Record actual image digests, architecture, test totals and results. Confirm no host
   services or data changed. The metadata smoke tool does not claim these checks.
 
-No automatic database/account fixture writer or image publication is included in
-local build/start commands. Docker absence currently blocks these runtime checks.
+Local build/start commands do not provision accounts or publish images. The
+hosted E2E has passed eight API stages using its guarded synthetic fixture writer.
+Container stop/start persistence and native browser E2E are separate checks not
+established by that run; neither should be inferred from API-level history retrieval.
 
 ## Safe cleanup — later approval only
 
@@ -174,11 +186,58 @@ no volume removal and no broad host-cache deletion. No cleanup was executed here
 
 ## Actual preparation verification
 
--12 offline unit tests passed for fixed Origin translation/rejection/restoration,
- safe logging and publication scanner checks.
--Compose and workflow YAML parse; five services and five health checks verified.
- This is not a successful `docker compose config`, build or startup result.
--Shell/Python syntax and `git diff --check` passed.
--Index/working-tree tripwires found only reviewed literal PEM delimiter test helpers;
- no indexed file exceeded10MiB. This is heuristic scanning, not a credential audit
- certificate. Existing staging and unrelated workflow were not rewritten.
+- **96 offline deployment/workflow tests passed** for this public-release update,
+  including unchanged publication-gate tests and a new all-workflow SHA-pin check.
+- Compose/workflow YAML, embedded shell/Python syntax, documentation links and
+  security/diff checks passed. No local Docker build or service startup was run.
+- The previously verified hosted E2E applied V1–V14 only to a fresh disposable
+  database and passed all eight API stages with Qwen inference required and verified.
+- The previous complete isolated Java suite passed **415 tests** with no failures,
+  errors or skips; it was not rerun for these documentation/Action-pin changes.
+- Public-release scans covered 13 reachable commits, 605 unique blobs, 14 retained
+  Actions run-log archives and eight artifacts. No confirmed live credential was
+  identified; heuristic scanning is not a security certificate. No history was rewritten.
+
+## Public portfolio security checklist
+
+The project is source-available, not open source; see the [copyright notice](../README.md#copyright-and-permitted-access).
+Third-party licenses remain applicable. No project open-source license is added.
+
+Before the separately approved private-to-public change, review the existing author
+email and operational metadata in historical reports. Prior reachable-history and
+retained Actions log/artifact scans found no confirmed live credentials; scanning
+cannot prove absence of every secret. Removing a current file would not erase its
+historical versions. No history rewrite or credential rotation is presently indicated.
+Ownership and absence of confidential employer/client material are owner-confirmed.
+The author email and operational paths remain in history; consent to their public
+exposure is still required. A new commit cannot remove those older disclosures.
+
+Recommended Settings → Actions → General, before enabling public workflows:
+
+- Keep Actions disabled across the visibility transition until protection settings
+  below have been verified. Disabling/changing GitHub settings requires approval.
+- Allow GitHub-authored actions plus only the reviewed Docker actions:
+  `docker/setup-buildx-action`, `docker/login-action`, `docker/build-push-action`.
+  Require full-length commit SHA pins where the setting is available; all checked-in
+  `uses:` dependencies are pinned. Keep this allowlist narrow when adding workflows.
+- Set **Require approval for all external contributors** for fork pull-request
+  workflows. Keep all jobs on GitHub-hosted runners, never a personal/self-hosted Mac.
+- Set workflow permissions to **Read repository contents and packages**; leave
+  **Allow GitHub Actions to create and approve pull requests** unchecked. Existing
+  workflow-specific permissions remain `contents: read` and, for publication metadata
+  verification only, `actions: read`.
+- Never send write tokens or secrets to fork PRs. Do not introduce a privileged
+  `pull_request_target` path that checks out or executes contributor-controlled code.
+- Keep Docker Hub credentials only in `dockerhub-publication`, not PR-accessible
+  repository secrets. Preserve its single selected branch policy: branch `main`.
+- After public visibility makes Required reviewers available, configure a trusted
+  reviewer before re-enabling publication. Prevent self-review if a second reviewer
+  is available, and disallow administrator bypass where supported. Do not remove
+  the fail-closed reviewer check from `publication_gate.py`.
+- Enable/review secret scanning, push protection and dependency alerts where available.
+  Protect `main` and require review for workflow, Dockerfile and publication-gate
+  changes. Any visibility-change impact on existing rules must be checked explicitly.
+
+The publication gate and approved source SHA remain unchanged. A public repository
+is not approval to dispatch the publishing workflow. Retain registry read/write
+least privilege without delete permission and obtain separate publication approval.
