@@ -15,7 +15,7 @@ This is production-style disposable verification of the existing **development/d
 1. Review and separately approve committing/pushing these tooling files. Preserve the existing source-built E2E workflow, publication workflow, released digests and prior evidence.
 2. Confirm the repository's Actions selected-action allowlist still permits the exact checkout and upload-artifact references in the new workflow. No new Action providers or environment secrets are required. Keep image publication disabled.
 3. After the separately approved push, open **Actions → Published v1.0.0 artifact API E2E (no publication) → Run workflow → main**. This workflow has no inputs and cannot disable real model verification. Do not dispatch a second run automatically after failure.
-4. Inspect the completed run and its `published-artifact-e2e-RUN-ATTEMPT` artifact. Success requires the job and every check to pass, `success=true`, `verificationKind=PUBLISHED_ARTIFACTS`, `modelInferenceVerified=true`, and `applicationImagesBuilt=false`. Confirm `releaseImages` matches the approved lock.
+4. Inspect the completed run and its `published-artifact-e2e-RUN-ATTEMPT` artifact. API success requires `success=true`, `verificationKind=PUBLISHED_ARTIFACTS`, `modelInferenceVerified=true`, and `applicationImagesBuilt=false`. Confirm `releaseImages` matches the approved lock. Full job acceptance additionally requires the separate `published-artifact-cleanup-RUN-ATTEMPT` artifact with `success=true`, `volumesAbsent=true` and `containersAbsent=true`; missing cleanup evidence is not a pass.
 5. Treat a startup, pull, checksum, model fallback, authorization or API failure as failure. Preserve sanitized diagnostics and investigate before separately authorizing a new run. Never rebuild images to get this verification green.
 
 The workflow performs these commands on a fresh GitHub-hosted Linux VM, not on a Mac:
@@ -28,7 +28,8 @@ docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/com
 docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.release-verify.yaml pull
 docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.release-verify.yaml up -d --no-build --pull never --wait --wait-timeout 240
 python3 -B deploy/release_artifact_e2e.py run
-# Failure-only diagnostics and evidence upload precede teardown.
+# Failure-only diagnostics and API evidence upload precede teardown.
+# A second, always-run upload retains sanitized-cleanup.json after teardown.
 python3 -B deploy/release_artifact_e2e.py cleanup
 ```
 
@@ -60,6 +61,7 @@ Budget: Ubuntu 24.04 x64 public GitHub-hosted runner; container memory limits to
 | Chat | Merchant/Admin knowledge question must return KNOWLEDGE + RAG_LLM/SUCCEEDED + knowledge references; fallback fails |
 | Conversations | Create, completed server-owned turn, retrieve, rename with current version, delete; Merchant B and mismatched Admin portal ownership denied; saved generation also requires RAG_LLM/SUCCEEDED |
 | Final state | Exactly the existing synthetic fixture counts; created conversation removed; logout invalidates refresh |
+| Teardown | Validated project-only container/volume ownership; scoped down --volumes succeeds; both label-filtered and exact-name volume queries return empty; project container query returns empty |
 
 The webhook request runs inside the existing Python container to the fixed private Java endpoint `/api/v1/webhooks/mock-razorpay`, using HMAC-SHA256 over `timestamp + '.' + exact_body`. Its secret is passed through subprocess standard input, never arguments or logs. This does not expose Java or add an unrestricted proxy route. The test verifies terminal-state safety and inbox deduplication, **not** PROCESSING recovery or the Stripe ingress path.
 
@@ -67,9 +69,15 @@ The webhook request runs inside the existing Python container to the fixed priva
 
 ## Failure evidence, cleanup and recovery
 
-Only fixed result codes, allowlisted request metadata, image identities, source/lock identifiers and fixture counts enter the bounded sanitized JSON. Questions, answers, passwords, cookies, JWTs, HMAC credentials and raw responses are excluded. Diagnostic collection uses the existing bounded/redacted collector with an explicit allowlist of the two reviewed Compose files. Failure logs are captured before teardown; if secret inventory cannot be validated, log collection fails closed. Artifacts retain only the explicit JSON/log allowlist for three days; `.env`, keys, dumps and model weights are never uploaded.
+Only fixed result codes, allowlisted request metadata, image identities, source/lock identifiers and fixture counts enter the bounded sanitized JSON. Questions, answers, passwords, cookies, JWTs, HMAC credentials and raw responses are excluded. Diagnostic collection uses the existing bounded/redacted collector with an explicit allowlist of the two reviewed Compose files. Failure logs are captured before teardown; if secret inventory cannot be validated, log collection fails closed. Artifacts retain only the explicit JSON/log allowlist for three days; `.env`, keys, dumps and model weights are never uploaded. A second always-run upload after cleanup retains only `sanitized-cleanup.json`, including fixed-code failures. It is independent of the pre-cleanup API artifact; failure to produce cleanup evidence fails that upload step.
 
-Teardown runs with `always()`, validates exact project and temporary paths, stops only that project with a bounded timeout and does not use volume deletion or prune. The temporary named volume and files disappear when the dedicated hosted VM is discarded. Hard job cancellation or runner failure can interrupt in-job teardown; GitHub's VM disposal is the final isolation boundary. No shared/self-hosted runner is supported.
+Teardown runs with `always()` even after failed API or startup stages, has a five-minute step ceiling and validates the hosted-runner/main/repository/run-attempt and exact temporary-path guards. The reviewed Compose model declares only `container_pgdata`, mounted by PostgreSQL at `/var/lib/postgresql/data`. Its effective name must be exactly `paymesh-e2e-RUN-ATTEMPT_container_pgdata`. No volume is external or shared in this configuration; the model bind is read-only and secrets are file mounts.
+
+Before deletion, cleanup parses the effective Compose JSON and rejects external volumes, explicit shared names, custom driver options, extra volumes, anonymous/unexpected volume mounts and volumes_from. Existing named volumes must use the local driver, have no custom options and carry both matching Compose project and volume labels. Every project container is inspected for matching project/service identity and reviewed volume mounts. All stopped or running containers using the expected volume must belong to this exact project; a foreign consumer fails closed before removal. A namespace with unexpected containers or volumes is left untouched for investigation.
+
+Only after these checks does cleanup execute the fixed reviewed Compose file with the exact run-specific project, `down --volumes --timeout 30`, bounded to 90 seconds and without retries, prune, remove-orphans or direct rm commands. It then requires successful empty results from both the project-label and anchored exact-name Docker volume lists, and from the project container list. A failed listing is never interpreted as absence. Only then are `success`, `volumesAbsent` and `containersAbsent` recorded as true in a new exclusive mode-600 `sanitized-cleanup.json`. Fixed failure codes are retained instead of arbitrary CLI stdout/stderr, configuration or exception text. The existing successful API evidence is not overwritten or changed by cleanup.
+
+This safety model relies on a dedicated GitHub-hosted VM without concurrent outside resource mutation between ownership inspection and removal; self-hosted runners are rejected. Hard cancellation or VM failure can still interrupt cleanup or evidence upload. In that case cleanup is unverified, regardless of the prior API result, and GitHub VM disposal remains the fallback isolation boundary. No local cleanup is authorized by this procedure.
 
 No rollback of published images is necessary: this job never pushes or alters them. On partial failure, do not change tags, restart local services or restore any database. Read sanitized evidence, fix only confirmed tooling defects, and request approval for another manual run. Do not automatically retry mutation or inference requests.
 
@@ -81,7 +89,7 @@ API success does not establish rendered UI interaction, screenshots, mobile 375p
 
 Run the deployment unittest suite, AST syntax checks, Ruby/Psych YAML parsing, JSON parsing and `git diff --check`. Docker Compose configuration validation requires Docker CLI with Compose; when unavailable locally, record it as not executed. The workflow performs real Compose validation on the runner before pulling/starting. No offline result may be reported as published-artifact runtime success.
 
-Verified during implementation: all **125 deployment tests passed**, including **29 published-artifact tests**. Python AST, YAML/JSON parsing, the targeted seven-file publication scanner and whitespace checks passed. Existing source-build and publication workflow bytes were unchanged. Docker CLI/Compose was unavailable locally, so real Compose config validation and all runtime/container/model checks were **not executed**. No Java, application Python or frontend suite was rerun because their application sources were unchanged.
+Verified during implementation: all **135 deployment tests passed**, including **39 published-artifact tests**. Python AST, YAML/JSON parsing, the targeted seven-file publication scanner and whitespace checks passed. Existing source-build and publication workflow bytes were unchanged. Docker CLI/Compose was unavailable locally, so real Compose config validation and all runtime/container/model checks were **not executed**. No Java, application Python or frontend suite was rerun because their application sources were unchanged.
 
 ## First published-artifact run: confirmed seed-check correction
 
@@ -92,3 +100,7 @@ A second source-confirmed assumption in the new blanket empty-table check would 
 The failed operation was Compose `exec -T postgres psql -X -U paymesh_container_user -d paymesh_container -Atq -v ON_ERROR_STOP=1`, with the failing SELECT provided through standard input. The Compose project was `paymesh-e2e-44787046258-1`, using its runner-temp `container.env` and `deploy/compose.release-verify.yaml` from the checked-out workspace. The workflow process exited 1; the inner psql/Compose exit code and stderr were captured in memory but discarded by the inherited command helper, so their exact historical values cannot be recovered from these artifacts. The PostgreSQL server error independently establishes the failed statement.
 
 No additional generic diagnostic layer is necessary to establish this cause. If a different container operation fails later, a narrowly scoped follow-up can record a fixed operation category, target service, numeric exit code and allowlisted PostgreSQL error category. It must never log stdin, raw SQL, command arguments containing credentials, or arbitrary stderr. This correction performs no retry, skips no check, and does not claim that the remaining runtime stages have passed.
+
+## Cleanup verification correction after successful API run
+
+Run `44788600607` successfully verified the published API stack and real model inference on commit `77fc2106b7a358145238e89c1375e6f3bdc90906`. Its historical `down` did not explicitly remove volumes, so that run remains API evidence rather than proof of volume absence. The new guarded cleanup and separate retained cleanup artifact close the tooling gap for a future separately approved run; no runtime cleanup or workflow dispatch was performed during this correction. Existing API assertions, the four published digest locks and the source-built E2E/publication workflows remain unchanged.

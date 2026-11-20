@@ -180,6 +180,106 @@ END $$; ROLLBACK;""")
         return status
 
 
+
+def cleanup_project(project, folder):
+    """Remove only proven runner-project resources; preserve fixed-code evidence.
+
+    Inspect the effective Compose model AND actual Docker ownership before down.
+    Never treat a Docker CLI failure as proof of resource absence.
+    """
+    import subprocess
+    expected = project + '_container_pgdata'
+    compose = ['docker', 'compose', '--project-name', project, '--env-file',
+               str(folder/'container.env'), '-f', COMPOSE]
+    report = {'success': False, 'project': project, 'volumesAbsent': False,
+              'containersAbsent': False, 'failureCode': None}
+
+    def command(args, timeout=15):
+        result = subprocess.run(args, capture_output=True, timeout=timeout)
+        require(result.returncode == 0, 'CLEANUP_DOCKER_OPERATION_FAILED')
+        require(len(result.stdout) <= 131072, 'CLEANUP_RESPONSE_TOO_LARGE')
+        return result.stdout.decode('utf-8')
+
+    def names(args):
+        return command(args).splitlines()
+
+    volume_list = ['docker', 'volume', 'ls', '--filter',
+                   'label=com.docker.compose.project='+project, '--format', '{{.Name}}']
+    exact_volume = ['docker', 'volume', 'ls', '--filter', 'name=^'+expected+'$',
+                    '--format', '{{.Name}}']
+    containers = ['docker', 'ps', '-a', '--no-trunc', '--filter',
+                  'label=com.docker.compose.project='+project, '--format', '{{.ID}}']
+    try:
+        config = json.loads(command(compose+['config', '--format', 'json']))
+        require(config.get('name') == project, 'CLEANUP_PROJECT_MISMATCH')
+        require(set(config.get('volumes', {})) == {'container_pgdata'}, 'CLEANUP_UNEXPECTED_VOLUME_CONFIG')
+        volume = config['volumes']['container_pgdata']
+        require(volume.get('name') == expected and not volume.get('external')
+                and volume.get('driver', 'local') == 'local' and not volume.get('driver_opts'),
+                'CLEANUP_EXTERNAL_OR_SHARED_VOLUME')
+        services = config.get('services', {})
+        require(set(services) == {'postgres', 'java', 'python', 'frontend', 'llama'}, 'CLEANUP_SERVICE_MISMATCH')
+        declared = []
+        for service, definition in services.items():
+            require(not definition.get('volumes_from'), 'CLEANUP_SHARED_MOUNTS')
+            for mount in definition.get('volumes', []):
+                require(isinstance(mount, dict), 'CLEANUP_UNREVIEWED_MOUNT')
+                if mount.get('type') == 'volume':
+                    declared.append((service, mount.get('source'), mount.get('target')))
+        require(declared == [('postgres', 'container_pgdata', '/var/lib/postgresql/data')],
+                'CLEANUP_UNEXPECTED_VOLUME_MOUNT')
+        owned_volumes, named_volumes = names(volume_list), names(exact_volume)
+        require(set(owned_volumes) <= {expected} and set(named_volumes) <= {expected},
+                'CLEANUP_UNEXPECTED_OWNED_VOLUME')
+        require(set(owned_volumes) == set(named_volumes), 'CLEANUP_VOLUME_OWNERSHIP_MISMATCH')
+        ids = names(containers)
+        require(len(ids) <= 5 and len(ids) == len(set(ids))
+                and all(re.fullmatch('[a-f0-9]{64}', i) for i in ids), 'CLEANUP_UNEXPECTED_CONTAINERS')
+        if owned_volumes:
+            inspected = json.loads(command(['docker', 'volume', 'inspect', expected]))
+            require(len(inspected) == 1, 'CLEANUP_VOLUME_INSPECT_MISMATCH')
+            actual = inspected[0];labels = actual.get('Labels') or {}
+            require(actual.get('Name') == expected and actual.get('Driver') == 'local'
+                    and actual.get('Scope') == 'local' and not actual.get('Options')
+                    and labels.get('com.docker.compose.project') == project
+                    and labels.get('com.docker.compose.volume') == 'container_pgdata',
+                    'CLEANUP_VOLUME_OWNERSHIP_MISMATCH')
+            users = names(['docker', 'ps', '-a', '--no-trunc', '--filter', 'volume='+expected,
+                           '--format', '{{.ID}}'])
+            require(set(users) <= set(ids), 'CLEANUP_VOLUME_SHARED_WITH_FOREIGN_CONTAINER')
+        if ids:
+            # Select only identity and mount metadata; never emit Config.Env.
+            fmt = '{"id":{{json .Id}},"labels":{{json .Config.Labels}},"mounts":{{json .Mounts}}}'
+            records = [json.loads(line) for line in command(['docker', 'inspect', '--format', fmt, *ids]).splitlines()]
+            require(len(records) == len(ids) and {c['id'] for c in records} == set(ids), 'CLEANUP_CONTAINER_INSPECT_MISMATCH')
+            seen = set()
+            for container in records:
+                labels = container.get('labels') or {};service = labels.get('com.docker.compose.service')
+                require(labels.get('com.docker.compose.project') == project and service in services
+                        and service not in seen, 'CLEANUP_CONTAINER_OWNERSHIP_MISMATCH')
+                seen.add(service)
+                for mount in container.get('mounts', []):
+                    if mount.get('Type') == 'volume':
+                        require(service == 'postgres' and mount.get('Name') == expected
+                                and expected in owned_volumes
+                                and mount.get('Destination') == '/var/lib/postgresql/data',
+                                'CLEANUP_UNEXPECTED_ACTUAL_VOLUME')
+        command(compose+['down', '--volumes', '--timeout', '30'], timeout=90)
+        require(not names(volume_list) and not names(exact_volume), 'CLEANUP_VOLUMES_REMAIN')
+        report['volumesAbsent'] = True
+        require(not names(containers), 'CLEANUP_CONTAINERS_REMAIN')
+        report.update(containersAbsent=True, success=True)
+    except Exception as error:
+        code = str(error) if isinstance(error, Failure) else 'CLEANUP_UNEXPECTED_OPERATION_FAILURE'
+        report['failureCode'] = code if re.fullmatch('[A-Z0-9_]{1,80}', code) else 'CLEANUP_UNCLASSIFIED_FAILURE'
+    # Owner-only fixture parent; exclusive file preserves any previous evidence.
+    path = folder/'sanitized-cleanup.json'
+    with os.fdopen(os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600), 'w') as output:
+        output.write(json.dumps(report, indent=2)+'\n')
+    print('DISPOSABLE_PROJECT_AND_VOLUMES_REMOVED' if report['success'] else report['failureCode'])
+    return 0 if report['success'] else 1
+
+
 def main(action):
     project = guard()
     if action == 'fixtures':
@@ -194,11 +294,7 @@ def main(action):
         from capture_failure_diagnostics import collect
         collect(COMPOSE);return 0
     if action == 'cleanup':
-        # No volume pruning. The dedicated hosted VM owns and discards its volume.
-        import subprocess
-        result = subprocess.run(['docker', 'compose', '--project-name', project, '--env-file', str(folder/'container.env'), '-f', COMPOSE, 'down', '--timeout', '30'], capture_output=True, timeout=90)
-        require(result.returncode == 0, 'DISPOSABLE_TEARDOWN_FAILED')
-        print('DISPOSABLE_PROJECT_STOPPED');return 0
+        return cleanup_project(project, folder)
     raise Failure('UNKNOWN_RELEASE_ACTION')
 
 

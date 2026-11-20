@@ -77,6 +77,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_actions_are_exact_allowlisted_sha_pins(self):
         uses=[s['uses'] for s in self.workflow['jobs']['verify']['steps'] if 'uses' in s]
         self.assertEqual(uses,['actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803',
+                             'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9',
                              'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9'])
 
     def test_pull_precedes_no_build_start(self):
@@ -122,12 +123,10 @@ class RuntimeGuardTests(unittest.TestCase):
         with patch.dict(os.environ,{**env(),'E2E_ENV':'/private/config'},clear=True):
             with self.assertRaises(r.Failure):r.ReleaseSuite()
 
-    def test_teardown_only_own_project_no_volume_deletion(self):
-        with patch.dict(os.environ,env(),clear=True),patch('subprocess.run',return_value=Mock(returncode=0)) as call:
+    def test_teardown_delegates_only_validated_project(self):
+        with patch.dict(os.environ,env(),clear=True),patch.object(r,'cleanup_project',return_value=0) as call:
             self.assertEqual(r.main('cleanup'),0)
-        argv=call.call_args.args[0]
-        self.assertIn(r.COMPOSE,argv);self.assertNotIn('--volumes',argv);self.assertNotIn('-v',argv)
-        self.assertEqual(call.call_args.kwargs['timeout'],90)
+        call.assert_called_once_with('paymesh-e2e-123-1',Path('/tmp').resolve()/'paymesh-e2e-123-1')
 
     def test_teardown_foreign_project_never_executes(self):
         with patch.dict(os.environ,{**env(),'E2E_PROJECT':'real-db'},clear=True),patch('subprocess.run') as call:
@@ -281,6 +280,129 @@ class ApiCoverageTests(unittest.TestCase):
         with patch.object(r.Suite,'seed') as seed:
             with self.assertRaises(r.Failure):s.seed()
             seed.assert_not_called()
+
+
+class CleanupTests(unittest.TestCase):
+    def fixture(self, temp, **options):
+        project='paymesh-e2e-123-1';volume=project+'_container_pgdata'
+        folder=Path(temp).resolve()/project;folder.mkdir(mode=0o700)
+        services={name:{'volumes':[]} for name in ('postgres','java','python','frontend','llama')}
+        services['postgres']['volumes']=[{'type':'volume','source':'container_pgdata','target':'/var/lib/postgresql/data'}]
+        config={'name':project,'volumes':{'container_pgdata':{'name':volume}},'services':services}
+        actual={'Name':volume,'Driver':'local','Scope':'local','Options':None,
+                'Labels':{'com.docker.compose.project':project,'com.docker.compose.volume':'container_pgdata'}}
+        records=[{'id':str(i+1)*64,'labels':{'com.docker.compose.project':project,'com.docker.compose.service':name},
+                  'mounts':[{'Type':'volume','Name':volume,'Destination':'/var/lib/postgresql/data'}] if name=='postgres' else []}
+                 for i,name in enumerate(services)]
+        calls=[];state={'removed':False}
+        if options.get('external'):config['volumes']['container_pgdata']['external']=True
+        if options.get('explicit_shared_name'):config['volumes']['container_pgdata']['name']='shared-data'
+        if options.get('driver_options'):config['volumes']['container_pgdata']['driver_opts']={'device':'/protected/data','o':'bind','type':'none'}
+        if options.get('extra_volume'):config['volumes']['unexpected']={'name':project+'_unexpected'}
+        if options.get('extra_mount'):services['python']['volumes']=[{'type':'volume','source':'other','target':'/other'}]
+        if options.get('wrong_labels'):actual['Labels']['com.docker.compose.project']='foreign'
+        if options.get('unlabelled'):actual['Labels']={}
+        if options.get('anonymous_mount'):records[1]['mounts']=[{'Type':'volume','Name':'unknown-anonymous','Destination':'/unknown'}]
+        if options.get('other_container'):records[1]['labels']['com.docker.compose.project']='foreign'
+        def output(value, code=0):
+            return Mock(returncode=code,stdout=(value if isinstance(value,str) else json.dumps(value)).encode(),stderr=b'SYNTHETIC_PRIVATE_ERROR_MUST_NOT_ESCAPE')
+        def execute(args,**kwargs):
+            calls.append((args,kwargs))
+            self.assertTrue(kwargs['capture_output']);self.assertIn(kwargs['timeout'],(15,90))
+            if 'config' in args:return output(config)
+            if 'down' in args:
+                if options.get('down_fails'):return output('',1)
+                state['removed']=True;return output('')
+            if args[:3]==['docker','volume','ls']:
+                if options.get('absence_query_fails') and state['removed']:return output('',1)
+                if state['removed'] and not options.get('volume_remains'):return output('')
+                if options.get('no_resources'):return output('')
+                return output(volume+'\n')
+            if args[:3]==['docker','volume','inspect']:return output([actual])
+            if args[:3]==['docker','ps','-a']:
+                if state['removed'] and not options.get('container_remains'):return output('')
+                if options.get('no_resources'):return output('')
+                if 'volume='+volume in args:
+                    return output(('f'*64 if options.get('foreign_user') else records[0]['id'])+'\n')
+                return output('\n'.join(c['id'] for c in records)+'\n')
+            if args[:2]==['docker','inspect']:return output('\n'.join(json.dumps(c) for c in records)+'\n')
+            self.fail('Unexpected CLI category')
+        return folder,calls,execute
+
+    def run_cleanup(self,temp,**options):
+        folder,calls,execute=self.fixture(temp,**options)
+        with patch.dict(os.environ,env(temp),clear=True),patch('subprocess.run',side_effect=execute),contextlib.redirect_stdout(io.StringIO()) as output:
+            status=r.main('cleanup')
+        report=json.loads((folder/'sanitized-cleanup.json').read_text())
+        self.assertEqual((folder/'sanitized-cleanup.json').stat().st_mode&0o777,0o600)
+        self.assertNotIn('SYNTHETIC_PRIVATE',output.getvalue()+json.dumps(report))
+        return status,report,calls
+
+    def test_success_removes_only_project_resources_and_verifies_absence(self):
+        with tempfile.TemporaryDirectory() as temp:status,report,calls=self.run_cleanup(temp)
+        self.assertEqual(status,0);self.assertTrue(report['success']);self.assertTrue(report['volumesAbsent']);self.assertTrue(report['containersAbsent'])
+        down=next(i for i,c in enumerate(calls) if 'down' in c[0]);argv=calls[down][0]
+        self.assertIn('--volumes',argv);self.assertIn('paymesh-e2e-123-1',argv);self.assertIn(r.COMPOSE,argv)
+        self.assertNotIn('--remove-orphans',argv)
+        self.assertEqual(calls[down][1]['timeout'],90)
+        self.assertEqual(len(calls[down+1:]),3)
+        for args,_ in calls:self.assertNotIn('prune',args);self.assertNotIn('rm',args)
+
+    def test_failed_test_does_not_skip_cleanup(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder,calls,execute=self.fixture(temp)
+            with patch.dict(os.environ,env(temp),clear=True),patch.object(r,'ReleaseSuite') as suite,patch('subprocess.run',side_effect=execute):
+                suite.return_value.run.return_value=1
+                self.assertEqual(r.main('run'),1)
+                self.assertEqual(r.main('cleanup'),0)
+            self.assertTrue(any('down' in args for args,_ in calls))
+        workflow=yaml('.github/workflows/release-artifact-e2e.yml')['jobs']['verify']['steps']
+        cleanup=next(s for s in workflow if s.get('run','').endswith('.py cleanup'))
+        self.assertIn('always()',cleanup['if'])
+
+    def test_external_or_shared_config_never_reaches_down(self):
+        for option in ('external','explicit_shared_name','driver_options','extra_volume','extra_mount'):
+            with self.subTest(option=option),tempfile.TemporaryDirectory() as temp:
+                status,report,calls=self.run_cleanup(temp,**{option:True})
+                self.assertEqual(status,1);self.assertFalse(report['success'])
+                self.assertFalse(any('down' in args for args,_ in calls))
+
+    def test_unowned_or_shared_actual_resources_never_reach_down(self):
+        for option in ('wrong_labels','unlabelled','foreign_user','anonymous_mount','other_container'):
+            with self.subTest(option=option),tempfile.TemporaryDirectory() as temp:
+                status,report,calls=self.run_cleanup(temp,**{option:True})
+                self.assertEqual(status,1);self.assertFalse(any('down' in args for args,_ in calls))
+                self.assertFalse(report['volumesAbsent'])
+
+    def test_remaining_volume_fails_postcleanup_assertion(self):
+        with tempfile.TemporaryDirectory() as temp:status,report,calls=self.run_cleanup(temp,volume_remains=True)
+        self.assertEqual(status,1);self.assertEqual(report['failureCode'],'CLEANUP_VOLUMES_REMAIN');self.assertFalse(report['volumesAbsent'])
+
+    def test_remaining_container_fails_postcleanup_assertion(self):
+        with tempfile.TemporaryDirectory() as temp:status,report,calls=self.run_cleanup(temp,container_remains=True)
+        self.assertEqual(status,1);self.assertEqual(report['failureCode'],'CLEANUP_CONTAINERS_REMAIN');self.assertTrue(report['volumesAbsent'])
+
+    def test_failed_absence_query_is_not_proof_of_removal(self):
+        with tempfile.TemporaryDirectory() as temp:status,report,calls=self.run_cleanup(temp,absence_query_fails=True)
+        self.assertEqual(status,1);self.assertEqual(report['failureCode'],'CLEANUP_DOCKER_OPERATION_FAILED');self.assertFalse(report['volumesAbsent'])
+
+    def test_failed_down_reports_failure_without_retry(self):
+        with tempfile.TemporaryDirectory() as temp:status,report,calls=self.run_cleanup(temp,down_fails=True)
+        self.assertEqual(status,1);self.assertEqual(report['failureCode'],'CLEANUP_DOCKER_OPERATION_FAILED')
+        self.assertEqual(sum('down' in args for args,_ in calls),1);self.assertFalse(report['success'])
+
+    def test_no_startup_resources_still_checked(self):
+        with tempfile.TemporaryDirectory() as temp:status,report,calls=self.run_cleanup(temp,no_resources=True)
+        self.assertEqual(status,0);self.assertTrue(report['volumesAbsent'])
+
+    def test_cleanup_artifact_retained_after_cleanup_even_on_failure(self):
+        steps=yaml('.github/workflows/release-artifact-e2e.yml')['jobs']['verify']['steps']
+        clean=next(i for i,s in enumerate(steps) if s.get('run','').endswith('.py cleanup'))
+        evidence=steps[clean+1]
+        self.assertIn('always()',evidence['if']);self.assertIn('upload-artifact@',evidence['uses'])
+        self.assertEqual(evidence['with']['path'],'${{ env.E2E_DIR }}/sanitized-cleanup.json')
+        self.assertEqual(evidence['with']['if-no-files-found'],'error')
+        self.assertEqual(steps[clean]['timeout-minutes'],5)
 
 
 if __name__=='__main__':unittest.main()
