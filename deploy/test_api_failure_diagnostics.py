@@ -1,8 +1,8 @@
 """Offline request metadata tests: synthetic responses only, no live services."""
-import io,json,subprocess,unittest,urllib.error
+import errno,http.client,io,json,ssl,subprocess,tempfile,unittest,urllib.error
 from email.message import Message
 from pathlib import Path
-from unittest.mock import Mock,MagicMock
+from unittest.mock import Mock,MagicMock,patch
 import container_e2e as e
 
 class ApiFailureTests(unittest.TestCase):
@@ -57,5 +57,38 @@ class ApiFailureTests(unittest.TestCase):
         self.assertLess(steps.index(api),steps.index(upload));self.assertLess(steps.index(upload),steps.index(cleanup))
         self.assertEqual(upload['if'],"${{ failure() && steps.api_e2e.outcome == 'failure' }}")
         self.assertEqual(upload['with']['path'],'${{ env.E2E_DIR }}/sanitized-e2e.json');self.assertEqual(upload['with']['retention-days'],3)
+
+class ExceptionMetadataTests(unittest.TestCase):
+    def test_categories_and_wrapped_connection_refused(self):
+        cases=[(urllib.error.URLError(ConnectionRefusedError(errno.ECONNREFUSED,'PRIVATE')),'CONNECTION_REFUSED'),
+               (TimeoutError('PRIVATE'),'TIMEOUT'),(ssl.SSLError('PRIVATE'),'TLS_ERROR'),
+               (http.client.RemoteDisconnected('PRIVATE'),'HTTP_PROTOCOL_ERROR'),
+               (json.JSONDecodeError('PRIVATE','PRIVATE',0),'JSON_DECODE_ERROR'),
+               (TypeError('PRIVATE'),'RUNNER_VALUE_OR_TYPE_ERROR'),
+               (urllib.error.HTTPError('PRIVATE',401,'PRIVATE',None,None),'HTTP_ERROR')]
+        for error,category in cases:
+            with self.subTest(category=category):
+                record=e.exception_metadata(error)
+                self.assertEqual(record['errorCategory'],category);self.assertNotIn('PRIVATE',json.dumps(record))
+                self.assertEqual(record['connectionTarget'],'http://127.0.0.1:15500')
+        record=e.exception_metadata(cases[0][0]);self.assertEqual(record['exceptionClass'],'URLError');self.assertEqual(record['causeClass'],'ConnectionRefusedError');self.assertEqual(record['errnoCode'],'ECONNREFUSED')
+    def test_arbitrary_exception_class_and_reason_are_not_output(self):
+        SecretException=type('PRIVATE_CLASS',(Exception,),{})
+        for error in [SecretException('PRIVATE'),urllib.error.URLError('PRIVATE')]:
+            self.assertNotIn('PRIVATE',json.dumps(e.exception_metadata(error)))
+    def test_failure_artifact_captures_exception_with_one_attempt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            suite=object.__new__(e.Suite);suite.folder=Path(directory);suite.passed=[];suite.last_request=None;suite.verify_qwen=True
+            suite.identity=lambda:None;suite.seed=lambda:None
+            session=e.Session('ADMIN',suite.observe_request)
+            session.client.open=Mock(side_effect=urllib.error.URLError(ConnectionRefusedError(errno.ECONNREFUSED,'PRIVATE')))
+            suite.authentication=lambda:session.login('PRIVATE','PRIVATE')
+            for name in ['payment','checkout','refunds','ai_and_conversations','final_state']:setattr(suite,name,Mock())
+            with patch('builtins.print') as output:self.assertEqual(suite.run(),1)
+            result=json.loads((Path(directory)/'sanitized-e2e.json').read_text())
+            self.assertEqual(result['failedStage'],'authentication_and_roles');self.assertIsNone(result['lastRequest']['actualStatus'])
+            self.assertEqual(result['lastRequest']['exceptionClass'],'URLError');self.assertEqual(result['lastRequest']['errorCategory'],'CONNECTION_REFUSED')
+            self.assertNotIn('PRIVATE',json.dumps(result));self.assertNotIn('PRIVATE',str(output.call_args_list))
+            session.client.open.assert_called_once();suite.payment.assert_not_called()
 
 if __name__=='__main__':unittest.main()

@@ -3,7 +3,7 @@ Outputs fixed check names and counts, never payloads, tokens, SQL or raw logs.
 """
 from decimal import Decimal
 from http.cookiejar import CookieJar
-import json,os,re,subprocess,sys,urllib.request,urllib.error,urllib.parse,uuid
+import errno,http.client,json,os,re,ssl,subprocess,sys,urllib.request,urllib.error,urllib.parse,uuid
 from pathlib import Path
 from ci_fixture_setup import runner_project
 BASE='http://127.0.0.1:15500'
@@ -39,6 +39,38 @@ def response_metadata(raw,status):
     if status>=400:
         error=next((SAFE_ERRORS[value[k]] for k in ('message','error','detail') if isinstance(value.get(k),str) and value[k] in SAFE_ERRORS),'UNRECOGNIZED_ERROR_TEXT_OMITTED')
     return {'responseShape':'OBJECT','responseFields':sorted(SAFE_RESPONSE_FIELDS.intersection(value)),'accessTokenPresent':isinstance(value.get('accessToken'),str) and bool(value['accessToken']),'responseErrorCode':error}
+
+
+def exception_metadata(error):
+    # Never stringify exceptions: their text may contain URLs, bodies or secrets.
+    classes={'URLError','HTTPError','ConnectionRefusedError','ConnectionResetError',
+             'ConnectionAbortedError','TimeoutError','SSLError','SSLCertVerificationError',
+             'RemoteDisconnected','BadStatusLine','IncompleteRead','HTTPException',
+             'JSONDecodeError','UnicodeDecodeError','TypeError','ValueError',
+             'AttributeError','KeyError','OSError','gaierror'}
+    kind=type(error).__name__
+    cause=error.reason if isinstance(error,urllib.error.URLError) and not isinstance(error,urllib.error.HTTPError) else error
+    cause_kind=type(cause).__name__
+    if isinstance(cause,urllib.error.HTTPError):category='HTTP_ERROR'
+    elif isinstance(cause,ssl.SSLError):category='TLS_ERROR'
+    elif isinstance(cause,ConnectionRefusedError):category='CONNECTION_REFUSED'
+    elif isinstance(cause,TimeoutError):category='TIMEOUT'
+    elif isinstance(cause,http.client.HTTPException):category='HTTP_PROTOCOL_ERROR'
+    elif isinstance(cause,ConnectionResetError):category='CONNECTION_RESET'
+    elif isinstance(cause,json.JSONDecodeError):category='JSON_DECODE_ERROR'
+    elif isinstance(cause,UnicodeError):category='RESPONSE_ENCODING_ERROR'
+    elif isinstance(cause,OSError):category='NETWORK_OR_IO_ERROR'
+    elif isinstance(cause,(TypeError,ValueError,AttributeError,KeyError)):category='RUNNER_VALUE_OR_TYPE_ERROR'
+    else:category='UNCLASSIFIED_EXCEPTION'
+    record={'exceptionClass':kind if kind in classes else 'OTHER_EXCEPTION',
+            'causeClass':cause_kind if cause_kind in classes else 'OTHER_EXCEPTION',
+            'errorCategory':category,'connectionTarget':BASE}
+    # Only portable, fixed errno names; never arbitrary numeric/string attributes.
+    number=getattr(cause,'errno',None)
+    record['errnoCode']={errno.ECONNREFUSED:'ECONNREFUSED',errno.ECONNRESET:'ECONNRESET',
+                         errno.ETIMEDOUT:'ETIMEDOUT',errno.EHOSTUNREACH:'EHOSTUNREACH',
+                         errno.ENETUNREACH:'ENETUNREACH'}.get(number) if type(number) is int else None
+    return record
 
 class Failure(Exception):pass
 
@@ -183,6 +215,7 @@ COMMIT;""")
         except Exception as error:
             code=str(error) if isinstance(error,Failure) else 'UNEXPECTED_RUNNER_OR_PROTOCOL_ERROR'
             if not re.fullmatch('[A-Z0-9_]{1,80}',code):code='UNCLASSIFIED_FAILURE'
+            if not isinstance(error,Failure) and self.last_request is not None:self.last_request.update(exception_metadata(error))
             result={'success':False,'failureCode':code,'lastRequest':self.last_request,'failedStage':self.stage,'checksPassed':self.passed,'modelInferenceRequested':self.verify_qwen,'modelInferenceVerified':False,'dockerHubPublished':False}
         if not result['success']:print('E2E_FAILURE_DIAGNOSTIC='+json.dumps({'failureCode':result['failureCode'],'lastRequest':result['lastRequest']},sort_keys=True))
         path=self.folder/'sanitized-e2e.json';path.write_text(json.dumps(result,indent=2));path.chmod(0o600)
