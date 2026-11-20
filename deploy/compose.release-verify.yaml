@@ -1,0 +1,159 @@
+# Published artifacts only. Never add build sections or mutable application tags.
+name: paymesh-release-verification
+services:
+  postgres:
+    image: postgres:16.16-bookworm
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: paymesh_container
+      POSTGRES_USER: paymesh_container_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes: ['container_pgdata:/var/lib/postgresql/data']
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U paymesh_container_user -d paymesh_container']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+  java:
+    image: bhupirao/paymesh-java@sha256:22649c06e406681e4ea699a60ebcf1d537068ec1091b0b72c678a749c792eb2b
+    platform: linux/amd64
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports: ['127.0.0.1:15500:15500']
+    # Port publishing requires a non-internal bridge endpoint. Keep PostgreSQL
+    # isolated; only the frontend port is published from this shared namespace.
+    networks: [database, edge]
+    environment:
+      JAVA_TOOL_OPTIONS: '-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=2'
+      PORT: '18080'
+      SERVER_ADDRESS: 127.0.0.1
+      PAYMESH_DB_URL: jdbc:postgresql://postgres:5432/paymesh_container
+      PAYMESH_DB_USER: paymesh_container_user
+      SPRING_CONFIG_IMPORT: configtree:/run/secrets/
+      SPRING_PROFILES_ACTIVE: development
+      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_TARGET: '14'
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_SQL_INIT_MODE: never
+      PAYMESH_JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private
+      PAYMESH_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+      PAYMESH_JWT_ISSUER: https://paymesh-container.example.invalid
+      PAYMESH_JWT_AUDIENCE: paymesh-container-ui
+      PAYMESH_DEMO_GATEWAY_TIMEOUT_ENABLED: 'false'
+      PAYMESH_SETTLEMENT_SCHEDULING_ENABLED: 'false'
+      PAYMESH_AI_ENABLED: 'true'
+      PAYMESH_AI_BASE_URL: http://127.0.0.1:8000
+      PAYMESH_AI_CHAT_ENABLED: '${CHAT_ENABLED:-false}'
+      PAYMESH_SESSIONS_ORIGIN: http://127.0.0.1:5500
+      PAYMESH_SESSIONS_LOCAL_HTTP: 'true'
+      PAYMESH_CONVERSATIONS_CLEANUP_ENABLED: 'false'
+      PAYMESH_DEMO_PASSWORD_RECOVERY_ENABLED: 'false'
+      PAYMESH_DEMO_CHECKOUT_CONTROLS_ENABLED: 'false'
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -ec
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/18080
+          printf 'GET /actuator/health/readiness HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n' >&3
+          grep -q '"status":"UP"' <&3
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    secrets:
+      - {source: db_password, target: spring.datasource.password}
+      - {source: ai_token, target: paymesh.ai.chat.service-token}
+      - {source: razorpay_secret, target: paymesh.webhooks.razorpay-secret}
+      - {source: stripe_secret, target: paymesh.webhooks.stripe-secret}
+      - {source: settlement_token, target: paymesh.settlement.admin-token}
+      - jwt_private
+      - jwt_public
+    mem_limit: 640m
+    read_only: true
+    tmpfs: ['/tmp:size=96m']
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+  llama:
+    image: bhupirao/paymesh-llama@sha256:09a63d5e9312e4126b90cdc927045cbb69a654b66dd722e3823c53d4066bf74e
+    platform: linux/amd64
+    network_mode: service:java
+    depends_on:
+      java: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, "3", "http://127.0.0.1:8082/health"]
+      interval: 10s
+      timeout: 4s
+      retries: 18
+      start_period: 30s
+    command: ['--model', /models/qwen.gguf, '--host', 127.0.0.1, '--port', '8082', '--alias', paymesh-qwen, '--ctx-size', '4096', '--threads', '2', '--parallel', '1', '--n-gpu-layers', '0', '--log-disable']
+    volumes:
+      - type: bind
+        source: ${QWEN_MODEL_FILE:?Existing Qwen GGUF file; no copy or download}
+        target: /models/qwen.gguf
+        read_only: true
+        bind: {create_host_path: false}
+    mem_limit: 1024m
+    read_only: true
+    tmpfs: ['/tmp:size=32m']
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+  python:
+    image: bhupirao/paymesh-python@sha256:29edd8acb856f9a19067592e9fb384e43ce74a060b1b6dabe04d747f0bfe65ee
+    platform: linux/amd64
+    network_mode: service:java
+    depends_on:
+      java: {condition: service_healthy}
+      llama: {condition: service_healthy}
+    environment:
+      PAYMESH_AI_ANALYSIS_MODE: '${ANALYSIS_MODE:-RAG_ASSISTED}'
+      PAYMESH_AI_GENERATION_ENABLED: '${CHAT_ENABLED:-false}'
+      PAYMESH_AI_CHAT_API_ENABLED: '${CHAT_ENABLED:-false}'
+      PAYMESH_AI_INFERENCE_URL: http://127.0.0.1:8082/v1/chat/completions
+      PAYMESH_AI_MODEL_NAME: paymesh-qwen
+      PAYMESH_AI_GENERATION_TIMEOUT: '30'
+    secrets: [ai_token]
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3)']
+      interval: 10s
+      timeout: 4s
+      retries: 12
+    mem_limit: 192m
+    read_only: true
+    tmpfs: ['/tmp:size=32m']
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+  frontend:
+    image: bhupirao/paymesh-frontend@sha256:388718b672a9b944348a40257a56d212f1a6e4cb6ad372376a4e03ba5b1b2412
+    platform: linux/amd64
+    network_mode: service:java
+    depends_on:
+      java: {condition: service_healthy}
+      python: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:15500/merchant/ai", timeout=3)']
+      interval: 10s
+      timeout: 4s
+      retries: 12
+    mem_limit: 96m
+    read_only: true
+    tmpfs: ['/tmp:size=16m']
+    security_opt: ['no-new-privileges:true']
+    cap_drop: [ALL]
+networks:
+  database: {internal: true}
+  edge: {driver: bridge}
+volumes:
+  container_pgdata: {}
+secrets:
+  db_password: {file: '${CONTAINER_SECRET_DIR:?External container-only secret directory}/db_password'}
+  ai_token: {file: '${CONTAINER_SECRET_DIR}/ai_token'}
+  razorpay_secret: {file: '${CONTAINER_SECRET_DIR}/razorpay_secret'}
+  stripe_secret: {file: '${CONTAINER_SECRET_DIR}/stripe_secret'}
+  settlement_token: {file: '${CONTAINER_SECRET_DIR}/settlement_token'}
+  jwt_private: {file: '${CONTAINER_SECRET_DIR}/jwt_private'}
+  jwt_public: {file: '${CONTAINER_SECRET_DIR}/jwt_public'}

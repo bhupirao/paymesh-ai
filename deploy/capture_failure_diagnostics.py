@@ -68,7 +68,9 @@ def capture(args,limit=MAX_CAPTURE,timeout=15):
 def write(path,text):
     with os.fdopen(os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY|os.O_NOFOLLOW,0o600),'w') as out:out.write(text)
 
-def collect():
+def collect(compose_file="deploy/compose.yaml"):
+    if compose_file not in ("deploy/compose.yaml", "deploy/compose.release-verify.yaml"):
+        raise ValueError("UNREVIEWED_COMPOSE_FILE")
     project=runner_project();temp=Path(os.environ['RUNNER_TEMP']).resolve();folder=temp/project
     if os.environ.get('E2E_PROJECT')!=project or Path(os.environ.get('E2E_DIR','')).resolve()!=folder or Path(os.environ.get('E2E_ENV','')).resolve()!=folder/'container.env' or folder.is_symlink():raise ValueError('RUNNER_PROJECT_MISMATCH')
     output=folder/'diagnostics';output.mkdir(mode=0o700,exist_ok=False)
@@ -77,7 +79,7 @@ def collect():
     except Exception:
         status['status']='REDACTION_UNAVAILABLE_NO_LOGS_CAPTURED'
         write(output/'status.json',json.dumps(status,indent=2));return
-    compose=['docker','compose','--project-name',project,'--env-file',str(folder/'container.env'),'-f','deploy/compose.yaml']
+    compose=['docker','compose','--project-name',project,'--env-file',str(folder/'container.env'),'-f',compose_file]
     def save(name,args):
         try:
             text,meta=capture(args);clean=redact(text,values)
