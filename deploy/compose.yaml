@@ -23,7 +23,9 @@ services:
     depends_on:
       postgres: {condition: service_healthy}
     ports: ['127.0.0.1:15500:15500']
-    networks: [database]
+    # Port publishing requires a non-internal bridge endpoint. Keep PostgreSQL
+    # isolated; only the frontend port is published from this shared namespace.
+    networks: [database, edge]
     environment:
       JAVA_TOOL_OPTIONS: '-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=2'
       PORT: '18080'
@@ -149,6 +151,7 @@ services:
     cap_drop: [ALL]
 networks:
   database: {internal: true}
+  edge: {driver: bridge}
 volumes:
   container_pgdata: {}
 secrets:
