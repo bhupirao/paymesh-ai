@@ -32,6 +32,7 @@ def metadata():
             and bool(re.fullmatch(candidate.DIGEST, value.get('imageConfigDigest', '')))
             and bool(re.fullmatch('[a-f0-9]{64}', value.get('imageArchiveSha256', '')))
             and value.get('appSha256') == candidate.APP_SHA256
+            and value.get('presentationSha256') == candidate.PRESENTATION_SHA256
             and value.get('contextSha256') == candidate.CONTEXT_SHA256
             and value.get('registryManifestDigest') is None and value.get('published') is False
             and value.get('browserTested') is False and value.get('otherApplicationImagesBuilt') is False,
@@ -97,6 +98,7 @@ class CandidateSuite(ReleaseSuite):
             'success':True,'frontendArtifactKind':'source-built-candidate','publishedImagesOnly':False,
             'frontendConfigDigest':self.candidate['imageConfigDigest'],
             'frontendSource':candidate.SOURCE,'frontendRegistryManifestDigest':None,
+            'frontendPresentationSha256':candidate.PRESENTATION_SHA256,
             'publishedBackends':{name:self.lock['images'][name] for name in ('java','python','llama')},
             'fiveServicesHealthy':True,'browserTested':False})
 

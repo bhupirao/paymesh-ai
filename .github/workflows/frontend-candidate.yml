@@ -20,7 +20,7 @@ jobs:
         run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: a4171a5c090224622d584d45caa0d06e7997be9b
+          ref: a15410f2eb2c7d987c142fd7e3758eb237c6c70d
           path: candidate-source
           persist-credentials: false
       - name: Admission and approved bootstrap regression
@@ -28,6 +28,7 @@ jobs:
           available=$(df -Pk "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
           test "$available" -ge 2097152 || { echo 'INSUFFICIENT_CANDIDATE_DISK'; exit 1; }
           node --experimental-vm-modules candidate-source/frontend/tests/session-bootstrap.test.mjs
+          node --experimental-vm-modules candidate-source/frontend/tests/history-state.test.mjs
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
         with:
           cleanup: true

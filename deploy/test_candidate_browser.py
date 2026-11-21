@@ -25,7 +25,7 @@ def proof(identifier='paymesh-frontend-candidate-12-1'):
     return {'success':True,'candidateId':identifier,'sourceRevision':c.SOURCE,'workflowRevision':'f'*40,
             'platform':'linux/amd64','imageTag':'paymesh-frontend-candidate:'+identifier,
             'imageConfigDigest':'sha256:'+'a'*64,'imageArchiveSha256':'b'*64,'appSha256':c.APP_SHA256,
-            'contextSha256':c.CONTEXT_SHA256,'registryManifestDigest':None,'published':False,
+            'presentationSha256':c.PRESENTATION_SHA256,'contextSha256':c.CONTEXT_SHA256,'registryManifestDigest':None,'published':False,
             'browserTested':False,'otherApplicationImagesBuilt':False}
 
 
@@ -80,7 +80,7 @@ class CandidateBrowserTests(unittest.TestCase):
             folder=Path(tmp);folder.chmod(0o700);file=folder/'candidate.json';file.write_text(json.dumps(proof()));file.chmod(0o600)
             with patch.object(c,'scope',return_value=(proof()['candidateId'],folder)),patch.dict(os.environ,{'GITHUB_SHA':'f'*40}):
                 self.assertEqual(b.metadata()['imageConfigDigest'],proof()['imageConfigDigest'])
-                for key,value in [('sourceRevision','0'*40),('workflowRevision','0'*40),('imageTag','foreign:tag'),('appSha256','0'*64),('contextSha256','0'*64),('published',True),('registryManifestDigest','sha256:'+'a'*64),('browserTested',True)]:
+                for key,value in [('sourceRevision','0'*40),('workflowRevision','0'*40),('imageTag','foreign:tag'),('appSha256','0'*64),('presentationSha256','0'*64),('presentationSha256',None),('contextSha256','0'*64),('published',True),('registryManifestDigest','sha256:'+'a'*64),('browserTested',True)]:
                     file.write_text(json.dumps({**proof(),key:value}))
                     with self.assertRaises(Failure):b.metadata()
                 file.write_text(json.dumps(proof()));file.chmod(0o644)

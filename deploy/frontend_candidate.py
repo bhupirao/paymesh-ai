@@ -8,9 +8,10 @@ import shutil
 import subprocess
 import sys
 
-SOURCE = 'a4171a5c090224622d584d45caa0d06e7997be9b'
-CONTEXT_SHA256 = '27abd26312820b76229de8867f30674b50396d7f03dd2a8ca7d905dc79623a12'
+SOURCE = 'a15410f2eb2c7d987c142fd7e3758eb237c6c70d'
+CONTEXT_SHA256 = 'd8ccb142df61fbe71c16bc7f65f761230e0c83e80cd762f9724b34703273c01e'
 APP_SHA256 = '9b14131f8959e8bc8a393740ade4c43359243fc685d722c77a501e95e784e61e'
+PRESENTATION_SHA256 = '8f1bec53de24ee2d9aa5301d47f11513959cc816071d1ca69467abcca1b78780'
 REVISION = 'org.opencontainers.image.revision'
 OWNER = 'io.paymesh.frontend-candidate'
 DIGEST = r'sha256:[a-f0-9]{64}'
@@ -121,10 +122,13 @@ def build():
     validate_image(image, identifier)
     command(['docker', 'create', '--name', identifier, '--label', OWNER+'='+identifier,
              '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true', tag])
-    extracted = folder/'built-app.js'
-    command(['docker', 'cp', identifier+':/app/assets/js/app.js', str(extracted)])
-    require(extracted.is_file() and not extracted.is_symlink()
-            and hashlib.sha256(extracted.read_bytes()).hexdigest() == APP_SHA256, 'BUILT_BOOTSTRAP_MISMATCH')
+    for name, image_path, expected, code in (
+            ('built-app.js', '/app/assets/js/app.js', APP_SHA256, 'BUILT_BOOTSTRAP_MISMATCH'),
+            ('built-presentation.js', '/app/assets/js/chat/presentation.js', PRESENTATION_SHA256, 'BUILT_PRESENTATION_MISMATCH')):
+        extracted = folder/name
+        command(['docker', 'cp', identifier+':'+image_path, str(extracted)])
+        require(extracted.is_file() and not extracted.is_symlink()
+                and hashlib.sha256(extracted.read_bytes()).hexdigest() == expected, code)
     archive = folder/'frontend-candidate.tar'
     command(['docker', 'image', 'save', '--output', str(archive), tag], timeout=120)
     archive.chmod(0o600)
@@ -135,7 +139,8 @@ def build():
     evidence(folder, 'candidate.json', {'success': True, 'candidateId': identifier, 'sourceRevision': SOURCE,
              'workflowRevision': os.environ.get('GITHUB_SHA'), 'platform': 'linux/amd64', 'imageTag': tag,
              'imageConfigDigest': image['Id'], 'imageArchiveSha256': sha.hexdigest(), 'registryManifestDigest': None,
-             'contextSha256': CONTEXT_SHA256, 'appSha256': APP_SHA256, 'published': False,
+             'contextSha256': CONTEXT_SHA256, 'appSha256': APP_SHA256,
+             'presentationSha256': PRESENTATION_SHA256, 'published': False,
              'browserTested': False, 'otherApplicationImagesBuilt': False})
     print('FRONTEND_CANDIDATE_BUILT_AND_CONTENT_VERIFIED_NOT_PUBLISHED')
 
@@ -166,7 +171,7 @@ def cleanup():
     require(not command(['docker', 'ps', '-aq', '--filter', 'name=^/'+identifier+'$']).strip(), 'CLEANUP_CONTAINER_REMAINS')
     require(not command(['docker', 'image', 'ls', '--quiet', tag]).strip(), 'CLEANUP_IMAGE_REMAINS')
     # Only fixed direct leaves inside the validated private run directory.
-    for name in ('frontend-candidate.tar', 'built-app.js'):
+    for name in ('frontend-candidate.tar', 'built-app.js', 'built-presentation.js'):
         path = folder/name
         if path.exists():
             require(path.is_file() and not path.is_symlink(), 'CLEANUP_UNEXPECTED_FILE')

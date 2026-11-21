@@ -75,3 +75,20 @@ Tests cover manual triggers, exact source/Action pins, private candidate metadat
 - Concurrent index changes appeared during preparation; no staging command was issued and no staged entry was reset/reconciled. A later authorized commit must inspect the current index and isolate the intended diff.
 
 READY for separately approved review/commit/push of this candidate-browser preparation. No commit, push, dispatch, image build/publication, browser installation, local model download or inference was performed. Full candidate Chromium success remains UNKNOWN until a separately approved runner execution; the prior build-only success is not browser E2E evidence.
+
+## History-controls candidate update
+
+The candidate source is pinned to `a15410f2eb2c7d987c142fd7e3758eb237c6c70d`, containing the shared
+history-control busy/idle synchronization correction and its 12 lifecycle tests.
+Both manual candidate workflows run those tests alongside the 13 bootstrap tests.
+The canonical tracked 115-file runtime fingerprint is `d8ccb142df61fbe71c16bc7f65f761230e0c83e80cd762f9724b34703273c01e`.
+The build checks source revision and full context before Docker, extracts both
+app.js and chat/presentation.js from the actual inspection container, and rejects
+byte mismatches before any browser stack runs. The corrected presentation hash is
+`8f1bec53de24ee2d9aa5301d47f11513959cc816071d1ca69467abcca1b78780`. Candidate evidence records presentationSha256; the
+browser adapter requires it and records frontendPresentationSha256. Only fixed
+source/hash evidence is retained. Scoped cleanup includes the fixed extracted
+presentation filename. There are no new secrets, Actions, registry credentials,
+retries, image publication or changes to v1.0.0 release verification. Config/ archive
+digests remain distinct from registry digests. Native Chromium success is not
+claimed by this update.

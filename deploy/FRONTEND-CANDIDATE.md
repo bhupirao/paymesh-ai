@@ -4,10 +4,10 @@ This adds a separate manual-only build verification workflow. It does not change
 
 ## Reviewed identities and security
 
-- Approved frontend source: `a4171a5c090224622d584d45caa0d06e7997be9b`.
+- Approved frontend source: `a15410f2eb2c7d987c142fd7e3758eb237c6c70d`.
 - Existing public frontend: `bhupirao/paymesh-frontend@sha256:388718b672a9b944348a40257a56d212f1a6e4cb6ad372376a4e03ba5b1b2412`.
 - Java/Python/llama remain the exact references in `release-v1.0.0-images.json`.
-- Read-only live checks confirmed main at the approved source, selected Actions and SHA enforcement active, all three required Action references permitted, the publication workflow disabled, and the anonymous Docker Hub frontend v1.0.0 manifest matching the locked digest.
+- Earlier preparation recorded live checks for the preceding candidate: selected Actions/SHA enforcement, permitted Actions, disabled publication and the published frontend digest. Those historical checks do not establish execution of the newly pinned candidate.
 
 The frontend Dockerfile independently copies frontend Python handlers, HTML/assets and `deploy/frontend_entry.py` onto `python:3.13-slim-bookworm`. No Java, Python AI-service or llama build is required. The helper constructs a context containing only 115 approved runtime files. It verifies both source commit and a fixed aggregate content fingerprint; the built app.js must match its approved hash. Credentials, dumps, model weights, VCS and local virtual environments are absent from this context. Static secret-pattern checks and image configuration checks are defense in depth, not a comprehensive vulnerability certification.
 
@@ -79,3 +79,20 @@ Runner estimate: one Python-slim frontend build, one stopped inspection containe
 - Concurrent index changes appeared for the new workflow/helper/test paths despite no Git staging commands being issued. Those entries were preserved without reset or reconciliation; a later authorized commit must use a freshly reviewed isolated index. No commit, push, dispatch, local Docker operation, model download or publication occurred.
 
 Ready for separately approved review/commit/push of this build-only preparation. Candidate build output, startup, health and complete Chromium behavior remain unverified until their separately authorized runner execution.
+
+## History-controls candidate update
+
+The candidate source is pinned to `a15410f2eb2c7d987c142fd7e3758eb237c6c70d`, containing the shared
+history-control busy/idle synchronization correction and its 12 lifecycle tests.
+Both manual candidate workflows run those tests alongside the 13 bootstrap tests.
+The canonical tracked 115-file runtime fingerprint is `d8ccb142df61fbe71c16bc7f65f761230e0c83e80cd762f9724b34703273c01e`.
+The build checks source revision and full context before Docker, extracts both
+app.js and chat/presentation.js from the actual inspection container, and rejects
+byte mismatches before any browser stack runs. The corrected presentation hash is
+`8f1bec53de24ee2d9aa5301d47f11513959cc816071d1ca69467abcca1b78780`. Candidate evidence records presentationSha256; the
+browser adapter requires it and records frontendPresentationSha256. Only fixed
+source/hash evidence is retained. Scoped cleanup includes the fixed extracted
+presentation filename. There are no new secrets, Actions, registry credentials,
+retries, image publication or changes to v1.0.0 release verification. Config/ archive
+digests remain distinct from registry digests. Native Chromium success is not
+claimed by this update.

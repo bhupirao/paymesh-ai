@@ -44,7 +44,7 @@ class CandidateTests(unittest.TestCase):
     def test_exact_reviewed_source_not_moving_branch(self):
         steps=workflow()['jobs']['candidate']['steps'];checkouts=[s for s in steps if s.get('uses','').startswith('actions/checkout@')]
         self.assertEqual(checkouts[1]['with']['ref'],c.SOURCE)
-        self.assertEqual(c.SOURCE,'a4171a5c090224622d584d45caa0d06e7997be9b')
+        self.assertEqual(c.SOURCE,'a15410f2eb2c7d987c142fd7e3758eb237c6c70d')
         self.assertTrue(all(s['with']['persist-credentials'] is False for s in checkouts))
 
     def test_existing_sha_allowlist_only_and_no_publication(self):
@@ -70,6 +70,7 @@ class CandidateTests(unittest.TestCase):
         names=[name for name in names if '__pycache__' not in name and not name.endswith('.pyc')]
         self.assertEqual(c.fingerprint(ROOT,names),c.CONTEXT_SHA256)
         self.assertEqual(hashlib.sha256((ROOT/'frontend/assets/js/app.js').read_bytes()).hexdigest(),c.APP_SHA256)
+        self.assertEqual(hashlib.sha256((ROOT/'frontend/assets/js/chat/presentation.js').read_bytes()).hexdigest(),c.PRESENTATION_SHA256)
 
     def test_context_rejects_secrets_symlinks_and_unreviewed_paths(self):
         root=Path(self.temp.name);(root/'frontend').mkdir();good=root/'frontend/index.html';good.write_text('synthetic')
@@ -87,9 +88,9 @@ class CandidateTests(unittest.TestCase):
         value=image();value['Config']['Env']+=['SECRET_TOKEN=CANARY']
         with self.assertRaises(c.Invalid):c.validate_image(value,'paymesh-frontend-candidate-12-1')
 
-    def test_build_records_only_candidate_identity_and_exact_built_content(self):
+    def build_case(self, corrupt=False):
         work=Path(self.temp.name)/'workspace';source=work/'candidate-source'
-        files=['frontend/assets/js/app.js','deploy/Dockerfile.frontend','deploy/frontend_entry.py','.dockerignore']
+        files=['frontend/assets/js/app.js','frontend/assets/js/chat/presentation.js','deploy/Dockerfile.frontend','deploy/frontend_entry.py','.dockerignore']
         for name in files:
             target=source/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_text('synthetic-reviewed-content')
         app_hash=hashlib.sha256((source/files[0]).read_bytes()).hexdigest()
@@ -98,18 +99,37 @@ class CandidateTests(unittest.TestCase):
             calls.append(args)
             if args[0]=='git':return c.SOURCE.encode() if args[-1]=='HEAD' else ('\0'.join(files)+'\0').encode()
             if args[1:3]==['image','inspect']:return json.dumps([image(identifier)]).encode()
-            if args[1]=='cp':Path(args[-1]).write_bytes((source/files[0]).read_bytes())
+            if args[1]=='cp':Path(args[-1]).write_bytes(b'wrong-presentation' if corrupt and args[-1].endswith('built-presentation.js') else (source/files[0]).read_bytes())
             if args[1:3]==['image','save']:Path(args[args.index('--output')+1]).write_bytes(b'synthetic-archive-not-an-image')
             return b''
-        with patch.dict(os.environ,{**self.env,'GITHUB_WORKSPACE':str(work),'GITHUB_SHA':'f'*40},clear=True),patch.object(c,'APP_SHA256',app_hash),patch.object(c,'CONTEXT_SHA256',c.fingerprint(source,files)),patch.object(c,'command',side_effect=command):
+        with patch.dict(os.environ,{**self.env,'GITHUB_WORKSPACE':str(work),'GITHUB_SHA':'f'*40},clear=True),patch.object(c,'APP_SHA256',app_hash),patch.object(c,'PRESENTATION_SHA256',app_hash),patch.object(c,'CONTEXT_SHA256',c.fingerprint(source,files)),patch.object(c,'command',side_effect=command):
+            if corrupt:
+                with self.assertRaisesRegex(c.Invalid,'^BUILT_PRESENTATION_MISMATCH$'):c.build()
+                self.assertFalse(any(a[1:3]==['image','save'] for a in calls))
+                self.assertFalse((folder/'candidate.json').exists())
+                return
             c.build()
         report=json.loads((folder/'candidate.json').read_text())
+        self.assertEqual(report['presentationSha256'],app_hash)
+        self.assertTrue(any(a[1]=='cp' and a[-2].endswith('/app/assets/js/chat/presentation.js') for a in calls))
         self.assertFalse(report['published']);self.assertFalse(report['browserTested']);self.assertIsNone(report['registryManifestDigest'])
         self.assertEqual(report['imageConfigDigest'],image()['Id'])
         self.assertEqual(report['imageArchiveSha256'],hashlib.sha256(b'synthetic-archive-not-an-image').hexdigest())
         builds=[a for a in calls if a[:3]==['docker','buildx','build']]
         self.assertEqual(len(builds),1);self.assertIn('--load',builds[0]);self.assertNotIn('--push',builds[0])
         self.assertTrue(builds[0][builds[0].index('--file')+1].endswith('Dockerfile.frontend'))
+
+    def test_build_records_only_candidate_identity_and_exact_built_content(self):
+        self.build_case()
+
+    def test_built_presentation_mismatch_fails_before_success_evidence(self):
+        self.build_case(corrupt=True)
+
+    def test_both_candidate_workflows_run_history_lifecycle_and_bootstrap(self):
+        for name in ['frontend-candidate.yml','candidate-browser-e2e.yml']:
+            source=(ROOT/'.github/workflows'/name).read_text()
+            self.assertIn('node --experimental-vm-modules candidate-source/frontend/tests/history-state.test.mjs',source)
+            self.assertIn('node --experimental-vm-modules candidate-source/frontend/tests/session-bootstrap.test.mjs',source)
 
     def test_wrong_source_stops_before_any_docker_operation(self):
         work=Path(self.temp.name)/'workspace';(work/'candidate-source').mkdir(parents=True)
@@ -136,6 +156,7 @@ class CandidateTests(unittest.TestCase):
     def cleanup_case(self,foreign=False,shared=False,remaining=False):
         identifier,folder=c.scope(self.env);folder.mkdir(mode=0o700)
         state={'container':True,'image':True};calls=[]
+        extracted=folder/'built-presentation.js';extracted.write_text('synthetic')
         def command(args,timeout=30):
             calls.append(args)
             if args[1:3]==['ps','-aq']:
@@ -153,7 +174,7 @@ class CandidateTests(unittest.TestCase):
         with patch.dict(os.environ,self.env,clear=True),patch.object(c,'command',side_effect=command):
             if foreign or shared or remaining:
                 with self.assertRaises(c.Invalid):c.cleanup()
-            else:c.cleanup();self.assertTrue(json.loads((folder/'cleanup.json').read_text())['success'])
+            else:c.cleanup();self.assertTrue(json.loads((folder/'cleanup.json').read_text())['success']);self.assertFalse(extracted.exists())
         return calls
 
     def test_scoped_cleanup_success(self):
