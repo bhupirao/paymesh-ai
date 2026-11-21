@@ -3,12 +3,43 @@ import path from 'node:path';
 import { authBudget, AUTH_PATHS } from './auth-budget.js';
 import { test as base, expect } from '@playwright/test';
 export const ORIGIN = 'http://127.0.0.1:15500';
-export const ACTION_CODES = new Set(['ADMIN_LOGIN_STARTED', 'LOGIN_RESPONSE_RECEIVED', 'ADMIN_DASHBOARD_VISIBLE', 'MERCHANT_SEARCH_STARTED', 'MERCHANT_SEARCH_INPUT', 'MERCHANT_SEARCH_COMPLETED', 'MERCHANT_DETAIL_OPENED', 'APPROVAL_REVIEW_FILLED', 'APPROVAL_DIALOG_OPENED', 'APPROVAL_CANCELLED', 'APPROVAL_SUBMITTED', 'APPROVAL_CONFIRMED', 'ACTIVE_MERCHANT_LOGIN', 'PAYMENT_CREATED', 'PAYMENT_PROCESSED', 'PAYMENT_LIST_OPENED', 'OWNERSHIP_DENIAL', 'INVESTIGATION_SUBMITTED', 'REFUND_SUBMITTED', 'CHECKOUT_LINK_CREATED', 'CHECKOUT_SUBMITTED', 'CHAT_SUBMITTED', 'HISTORY_RENAMED', 'HISTORY_LISTED', 'HISTORY_LOADED', 'HISTORY_REFRESHED', 'HISTORY_DELETED', 'CROSS_TAB_RESTORED', 'LOGOUT_CONFIRMED', 'PORTAL_NAVIGATION', 'SESSION_REFRESH']);
-export async function checkpoint(code, action) {
-  requireSafe(ACTION_CODES.has(code), 'FIXED_ACTION_CODE_REQUIRED');
-  return test.step(code, action);
+export const ACTION_CODES = new Set(['ADMIN_LOGIN_STARTED', 'LOGIN_RESPONSE_RECEIVED', 'ADMIN_DASHBOARD_VISIBLE', 'MERCHANT_SEARCH_STARTED', 'MERCHANT_SEARCH_INPUT', 'MERCHANT_SEARCH_COMPLETED', 'MERCHANT_DETAIL_OPENED', 'APPROVAL_REVIEW_FILLED', 'APPROVAL_DIALOG_OPENED', 'APPROVAL_CANCELLED', 'APPROVAL_SUBMITTED', 'APPROVAL_CONFIRMED', 'ACTIVE_MERCHANT_LOGIN', 'PAYMENT_CREATED', 'PAYMENT_PROCESSED', 'PAYMENT_LIST_OPENED', 'OWNERSHIP_DENIAL', 'INVESTIGATION_SUBMITTED', 'REFUND_SUBMITTED', 'CHECKOUT_LINK_CREATED', 'CHECKOUT_SUBMITTED', 'CHAT_SUBMITTED', 'HISTORY_RENAMED', 'HISTORY_LISTED', 'HISTORY_LOADED', 'HISTORY_REFRESHED', 'HISTORY_DELETED', 'CROSS_TAB_RESTORED', 'LOGOUT_CONFIRMED', 'PORTAL_NAVIGATION', 'SESSION_REFRESH','CHECKOUT_FORM_READY','CHECKOUT_CURRENCY_SELECTED','CHECKOUT_METHOD_SELECTED','CHECKOUT_REVIEW_OPENED','CUSTOMER_CHECKOUT_OPENED','CUSTOMER_PAYMENT_REVIEWED','CHECKOUT_RECEIPT_VISIBLE','CHECKOUT_MERCHANT_STATUS_CONFIRMED','CHECKOUT_PAYMENT_AVAILABLE']);
+export const UI_STATES = new Set(['LINK_CREATE_FORM','LINK_REVIEW','LINK_CREATED','PUBLIC_CHECKOUT','PAYMENT_REVIEW','PAID_RECEIPT','MERCHANT_PAID_LINK','CHAT_ANSWER','SAVED_HISTORY','LOGGED_OUT']);
+export const ROUTE_CODES = new Set(['MERCHANT_LINK_CREATE','MERCHANT_LINKS','MERCHANT_DASHBOARD','ADMIN_DASHBOARD','MERCHANT_AI','ADMIN_AI','MERCHANT_LOGIN','ADMIN_LOGIN','PUBLIC_CHECKOUT','OTHER_LOCAL_ROUTE','OTHER_ORIGIN','UNAVAILABLE']);
+export const HTTP_CODES = new Set(['LINK_CREATE','LINK_READ','CHECKOUT_READ','CHECKOUT_PAY','PAYMENT_READ','PAYMENT_CREATE','PAYMENT_PROCESS','REFUND','INVESTIGATION','CHAT_MESSAGE','HISTORY_READ','HISTORY_RENAME','HISTORY_DELETE','OTHER_REQUEST','AUTH_REFRESH','AUTH_LOGOUT','AUTH_LOGIN']);
+const actionScopes=[];
+export function routeCategory(raw) {
+  try{const url=new URL(raw);if(url.origin!==ORIGIN)return 'OTHER_ORIGIN';
+    const routes={'/merchant/payment-links/create':'MERCHANT_LINK_CREATE','/merchant/payment-links':'MERCHANT_LINKS','/merchant/dashboard':'MERCHANT_DASHBOARD','/admin/dashboard':'ADMIN_DASHBOARD','/merchant/ai':'MERCHANT_AI','/admin/ai':'ADMIN_AI','/merchant/login':'MERCHANT_LOGIN','/admin/login':'ADMIN_LOGIN'};
+    return routes[url.pathname]||(/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(url.pathname)?'PUBLIC_CHECKOUT':'OTHER_LOCAL_ROUTE');
+  }catch{return 'UNAVAILABLE';}
 }
-function recordHttpStatus(status) {
+export function httpCategory(raw,method) {
+  try{const url=new URL(raw);if(url.origin!==ORIGIN)return 'OTHER_REQUEST';const p=url.pathname;
+    for(const [endpoint,code] of [['refresh','AUTH_REFRESH'],['logout','AUTH_LOGOUT'],['login','AUTH_LOGIN']])if(p==='/api/v1/auth/'+endpoint&&method==='POST')return code;
+    if(p==='/api/v1/merchant/payment-links'&&method==='POST')return 'LINK_CREATE';
+    if(/^\/api\/v1\/merchant\/payment-links\/[0-9a-f-]{36}$/.test(p)&&method==='GET')return 'LINK_READ';
+    if(/^\/api\/v1\/checkout\/[A-Za-z0-9_-]{43}(?:\/status)?$/.test(p)&&method==='GET')return 'CHECKOUT_READ';
+    if(/^\/api\/v1\/checkout\/[A-Za-z0-9_-]{43}\/pay$/.test(p)&&method==='POST')return 'CHECKOUT_PAY';
+    if(p==='/api/v1/payments'&&method==='POST')return 'PAYMENT_CREATE';
+    if(/^\/api\/v1\/payments\/[0-9a-f-]{36}$/.test(p)&&method==='GET')return 'PAYMENT_READ';
+    for(const [suffix,code] of [['process','PAYMENT_PROCESS'],['refund','REFUND'],['investigate','INVESTIGATION']])if(new RegExp('^/api/v1/payments/[0-9a-f-]{36}/'+suffix+'$').test(p)&&method==='POST')return code;
+    if(/^\/api\/v1\/(merchant|admin)\/ai\/conversations\/[0-9a-f-]{36}\/messages$/.test(p))return method==='POST'?'CHAT_MESSAGE':method==='GET'?'HISTORY_READ':'OTHER_REQUEST';
+    for(const [suffix,code] of [['rename','HISTORY_RENAME'],['delete','HISTORY_DELETE']])if(new RegExp('^/api/v1/(merchant|admin)/ai/conversations/[0-9a-f-]{36}/'+suffix+'$').test(p)&&method==='POST')return code;
+  }catch{}
+  return 'OTHER_REQUEST';
+}
+export async function checkpoint(code, action, {page,expectedState=null,expectedHttp=null}={}) {
+  requireSafe(ACTION_CODES.has(code), 'FIXED_ACTION_CODE_REQUIRED');
+  requireSafe((expectedState===null||UI_STATES.has(expectedState))&&(expectedHttp===null||HTTP_CODES.has(expectedHttp)),'FIXED_ACTION_CODE_REQUIRED');
+  const scope={code,expectedState,expectedHttp,status:null};actionScopes.push(scope);
+  try{return await test.step(code,action);}catch(error){
+    try{test.info().annotations.push({type:'safe-ui-context',description:JSON.stringify({actionCode:code,expectedState,routeCode:routeCategory(page?.url()),httpCode:expectedHttp,httpStatus:scope.status})});}catch{}
+    throw error;
+  }finally{actionScopes.splice(actionScopes.indexOf(scope),1);}
+}
+function recordHttpStatus(status, raw, method) {
+  const scope=actionScopes.at(-1);if(scope?.expectedHttp&&httpCategory(raw,method)===scope.expectedHttp)scope.status=status;
   if(Number.isInteger(status)&&status>=100&&status<=599){
     try{test.info().annotations.push({type:'safe-http-status',description:String(status)});}catch{/* Test may already be tearing down. No raw diagnostic is retained. */}
   }
@@ -185,7 +216,7 @@ export function responseFor(page, method, pathname) {
   // Attach rejection handling immediately: a failed click must not leave an
   // unhandled waitForResponse rejection after test teardown. The caller still
   // awaits the original promise and fails on timeout/status mismatch.
-  const observed=waiting?.then(response=>{recordHttpStatus(response.status());return response;});
+  const observed=waiting?.then(response=>{recordHttpStatus(response.status(),response.url(),response.request().method());return response;});
   observed?.catch(()=>{});
   return observed;
 }
@@ -224,7 +255,7 @@ export async function logout(page) {
     await authAction(page,'/api/v1/auth/logout',async()=>{reply=responseFor(page,'POST','/api/v1/auth/logout');await page.locator('#logout').click();});
     await body(await reply);
     await expect(page.locator('#login-form')).toBeVisible();
-  });
+  },{page,expectedState:'LOGGED_OUT',expectedHttp:'AUTH_LOGOUT'});
 }
 
 export async function authAction(page,pathname,action) {return authBudget.run(page,pathname,action);}
@@ -265,5 +296,5 @@ export async function refreshPage(page) {
   return checkpoint('SESSION_REFRESH',()=>authAction(page,'/api/v1/auth/refresh',async()=>{
     const restored=responseFor(page,'POST','/api/v1/auth/refresh');
     await Promise.all([page.reload(),restored.then(response=>requireSafe(response.status()===200,'SESSION_RESTORE_HTTP_STATUS'))]);
-  }));
+  }),{page,expectedState:/_AI$/.test(routeCategory(page.url()))?'SAVED_HISTORY':null,expectedHttp:'AUTH_REFRESH'});
 }

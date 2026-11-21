@@ -1,10 +1,10 @@
 // Never serialize Playwright TestResult, Error, attachments, URLs or browser state.
 import fs from 'node:fs';
 import path from 'node:path';
-import { guard, ACTION_CODES } from './fixtures.js';
+import { guard, ACTION_CODES, UI_STATES, ROUTE_CODES, HTTP_CODES } from './fixtures.js';
 const CODES = new Set(['COMPLETE_NATIVE_BROWSER_JOURNEY', 'MOBILE_KEYBOARD_AND_VALIDATION', 'DESKTOP_KEYBOARD_AND_VALIDATION', 'MERCHANT_REGISTRATION_VALIDATION', 'ADMIN_LOGIN_AND_NATIVE_APPROVAL', 'DASHBOARD_SESSION_AND_ROLE_PROTECTION', 'PAYMENT_CREATION_PROCESSING_AND_LIST', 'MERCHANT_OWNERSHIP_ISOLATION', 'NATIVE_INVESTIGATION_REAL_QWEN', 'PARTIAL_AND_FULL_REFUND_UI', 'PAYMENT_LINK_AND_CUSTOMER_CHECKOUT', 'MERCHANT_ADMIN_CHAT_AND_SAVED_HISTORY', 'CROSS_TAB_LOGOUT_AND_PROTECTED_ROUTE']);
 // Inspect bounded error text only to select constants; never retain text/stack.
-const SAFE_ERRORS = new Set(['HOSTED_RUNNER_REQUIRED','MANUAL_MAIN_REQUIRED','FIXED_LOCAL_STACK_REQUIRED','RUN_ID_REQUIRED','FIXTURE_SCOPE_REQUIRED','PRIVATE_FIXTURE_DIRECTORY_REQUIRED','PRIVATE_SECRET_DIRECTORY_REQUIRED','FIXTURE_CREDENTIAL_INVALID','BROWSER_HTTP_STATUS_MISMATCH','BROWSER_RESPONSE_TOO_LARGE','BROWSER_RESPONSE_INVALID','REAL_MODEL_REQUIRED','HORIZONTAL_OVERFLOW','EXACT_AMOUNT_REQUIRED','OWNERSHIP_DENIAL_REQUIRED','RESTORE_INVOKED_MODEL','AUTOMATIC_AI_REQUEST','SHIFT_ENTER_SENT_QUESTION','INVESTIGATION_SCOPE','REGISTRATION_STATUS','UNIQUE_PENDING_MERCHANT_REQUIRED','CREATED_PAYMENT_CONTRACT','PAYMENT_PROCESSING_STATUS','REFUND_RECORD','FIXED_CHECKOUT_URL','PAID_CHECKOUT_REQUIRED','VISIBLE_ANSWER_REQUIRED','SAVED_TURN_REQUIRED','OWNED_HISTORY_SEARCH','OTHER_MERCHANT_PRIVATE_HISTORY','ADMIN_MERCHANT_HISTORY_ISOLATION','CHROMIUM_WITNESS_REQUIRED','FIXED_OUTPUT_DIRECTORY_REQUIRED','PRIVATE_OUTPUT_REQUIRED','FIXED_CREDENTIAL_REQUIRED','AUTH_LIMIT_OBSERVED','AUTH_ACTION_SCOPE_REQUIRED','AUTH_BUDGET_WAIT_LIMIT','FIXED_BROWSER_TARGET_REQUIRED','AUTH_OBSERVATION_FAILED','FIXED_ACTION_CODE_REQUIRED','SESSION_RESTORE_HTTP_STATUS','APPROVAL_STATE_REQUIRED']);
+const SAFE_ERRORS = new Set(['HOSTED_RUNNER_REQUIRED','MANUAL_MAIN_REQUIRED','FIXED_LOCAL_STACK_REQUIRED','RUN_ID_REQUIRED','FIXTURE_SCOPE_REQUIRED','PRIVATE_FIXTURE_DIRECTORY_REQUIRED','PRIVATE_SECRET_DIRECTORY_REQUIRED','FIXTURE_CREDENTIAL_INVALID','BROWSER_HTTP_STATUS_MISMATCH','BROWSER_RESPONSE_TOO_LARGE','BROWSER_RESPONSE_INVALID','REAL_MODEL_REQUIRED','HORIZONTAL_OVERFLOW','EXACT_AMOUNT_REQUIRED','OWNERSHIP_DENIAL_REQUIRED','RESTORE_INVOKED_MODEL','AUTOMATIC_AI_REQUEST','SHIFT_ENTER_SENT_QUESTION','INVESTIGATION_SCOPE','REGISTRATION_STATUS','UNIQUE_PENDING_MERCHANT_REQUIRED','CREATED_PAYMENT_CONTRACT','PAYMENT_PROCESSING_STATUS','REFUND_RECORD','FIXED_CHECKOUT_URL','PAID_CHECKOUT_REQUIRED','VISIBLE_ANSWER_REQUIRED','SAVED_TURN_REQUIRED','OWNED_HISTORY_SEARCH','OTHER_MERCHANT_PRIVATE_HISTORY','ADMIN_MERCHANT_HISTORY_ISOLATION','CHROMIUM_WITNESS_REQUIRED','FIXED_OUTPUT_DIRECTORY_REQUIRED','PRIVATE_OUTPUT_REQUIRED','FIXED_CREDENTIAL_REQUIRED','AUTH_LIMIT_OBSERVED','AUTH_ACTION_SCOPE_REQUIRED','AUTH_BUDGET_WAIT_LIMIT','FIXED_BROWSER_TARGET_REQUIRED','AUTH_OBSERVATION_FAILED','FIXED_ACTION_CODE_REQUIRED','SESSION_RESTORE_HTTP_STATUS','APPROVAL_STATE_REQUIRED','CHECKOUT_LINK_CONTRACT','PAID_LINK_REQUIRED','CHECKOUT_PAYMENT_CONTRACT','CHECKOUT_READ_CONTRACT']);
 export function classifyFailure(error, status) {
   const message = (typeof error?.message === 'string' ? error.message.slice(0,8192) : '').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '');
   const firstLine = message.split(/\r?\n/,1)[0].trim().replace(/^Error:[ \t]*/, '');
@@ -57,6 +57,21 @@ function loginWitness(folder, code) {
   } catch {return null;}
 }
 
+function uiContext(annotations,pending) {
+  const empty={expectedUICategory:null,actualRouteCategory:null,lastRelevantHttpStatus:null,httpEndpointCategory:null};
+  for(const annotation of [...(annotations||[])].reverse()){
+    if(annotation.type!=='safe-ui-context'||typeof annotation.description!=='string'||annotation.description.length>1024)continue;
+    try{const value=JSON.parse(annotation.description);
+      if(value.actionCode!==pending||!ACTION_CODES.has(value.actionCode)
+        ||!(value.expectedState===null||UI_STATES.has(value.expectedState))||!ROUTE_CODES.has(value.routeCode)
+        ||!(value.httpCode===null||HTTP_CODES.has(value.httpCode))
+        ||!(value.httpStatus===null||Number.isInteger(value.httpStatus)&&value.httpStatus>=100&&value.httpStatus<=599))continue;
+      return {expectedUICategory:value.expectedState,actualRouteCategory:value.routeCode,lastRelevantHttpStatus:value.httpStatus,httpEndpointCategory:value.httpCode};
+    }catch{/* Never serialize malformed diagnostic contents. */}
+  }
+  return empty;
+}
+
 export default class SanitizedReporter {
   constructor() { this.tests = []; this.steps = []; this.infrastructureError = false; this.activeStage = new Map(); this.failedStage = new Map(); this.began = new Map(); this.infrastructureFailure = null; this.lastAction=new Map();this.pendingAction=new Map();this.actionStack=new Map(); }
   onStdOut() {}
@@ -91,6 +106,7 @@ export default class SanitizedReporter {
       failedStage:failed?(this.failedStage.get(test.id)||this.activeStage.get(test.id)||'HOOK_OR_FIXTURE_SETUP'):null,
       diagnostic,loginState:failed?loginWitness(guard(),code):null,
       lastCompletedActionCode:this.lastAction.get(test.id)||null,pendingActionCode:this.pendingAction.get(test.id)||null,
+      ...uiContext(test.annotations,this.pendingAction.get(test.id)),
       lastObservedHttpStatus:(test.annotations||[]).filter(a=>a.type==='safe-http-status'&&/^[1-5][0-9]{2}$/.test(a.description)).map(a=>Number(a.description)).at(-1)||null});
   }
   onEnd(result) {
@@ -107,7 +123,7 @@ export default class SanitizedReporter {
       process.stdout.write('BROWSER_FAILURE_DIAGNOSTIC=' + JSON.stringify({testCode:t.code,stageCode:t.failedStage,
         category:d.category,errorCode:d.errorCode,elapsedMs:t.elapsedMs,chromiumLaunchStatus:t.chromiumLaunchStatus,
         assertionCategory:d.assertionCategory,timeoutCategory:d.timeoutCategory,loginState:t.loginState,location:d.location,
-        lastCompletedActionCode:t.lastCompletedActionCode,pendingActionCode:t.pendingActionCode,lastObservedHttpStatus:t.lastObservedHttpStatus}) + '\n');
+        lastCompletedActionCode:t.lastCompletedActionCode,pendingActionCode:t.pendingActionCode,lastObservedHttpStatus:t.lastObservedHttpStatus,expectedUICategory:t.expectedUICategory,actualRouteCategory:t.actualRouteCategory,lastRelevantHttpStatus:t.lastRelevantHttpStatus,httpEndpointCategory:t.httpEndpointCategory}) + '\n');
     }
     if (this.infrastructureError) {
       const d = this.infrastructureFailure || classifyFailure(undefined, 'failed');

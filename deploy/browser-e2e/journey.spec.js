@@ -165,30 +165,58 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       const p=merchant.page;
       await navigate(p,'/merchant/payment-links/create');
       const root=p.locator('#merchant-links-workspace');
-      await root.getByLabel('Currency',{exact:true}).selectOption('USD');
+      await checkpoint('CHECKOUT_FORM_READY',async()=>{await expect(root).toBeVisible();await expect(root.locator('input[name="amount"]')).toBeVisible();},{page:p,expectedState:'LINK_CREATE_FORM'});
+      await checkpoint('CHECKOUT_CURRENCY_SELECTED',async()=>{
+        const currency=root.locator('select[name="currency"]');await currency.selectOption('USD');await expect(currency).toHaveValue('USD');
+      },{page:p,expectedState:'LINK_CREATE_FORM'});
       await root.getByLabel('Amount',{exact:true}).fill('25.00');
-      await root.getByLabel('Payment method',{exact:true}).selectOption('CARD');
+      await checkpoint('CHECKOUT_METHOD_SELECTED',async()=>{
+        const method=root.locator('select[name="paymentMethod"]');await method.selectOption('CARD');await expect(method).toHaveValue('CARD');
+      },{page:p,expectedState:'LINK_CREATE_FORM'});
       await root.getByLabel('Customer / order reference (optional)').fill('browser-checkout');
-      await root.getByRole('button',{name:'Review link',exact:true}).click();
+      await checkpoint('CHECKOUT_REVIEW_OPENED',async()=>{await root.getByRole('button',{name:'Review link',exact:true}).click();await expect(root.getByRole('button',{name:'Confirm create payment link',exact:true})).toBeVisible();},{page:p,expectedState:'LINK_REVIEW'});
       const created=responseFor(p,'POST','/api/v1/merchant/payment-links');
-      await checkpoint('CHECKOUT_LINK_CREATED',async()=>{await root.getByRole('button',{name:'Confirm create payment link',exact:true}).click();return body(await created,[201]);});
+      const link=await checkpoint('CHECKOUT_LINK_CREATED',async()=>{await root.getByRole('button',{name:'Confirm create payment link',exact:true}).click();return body(await created,[201]);},{page:p,expectedState:'LINK_CREATED',expectedHttp:'LINK_CREATE'});
+      requireSafe(link.status==='ACTIVE'&&link.amount==='25.00'&&link.currency==='USD'&&link.paymentMethod==='CARD'&&/^[0-9a-f-]{36}$/.test(link.linkId),'CHECKOUT_LINK_CONTRACT');
       const url=await root.getByLabel('Customer checkout URL (simulation only)').inputValue();
       requireSafe(new URL(url).origin===ORIGIN&&/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(new URL(url).pathname),'FIXED_CHECKOUT_URL');
       const c=customer.page;
-      await navigate(c,url);
+      await checkpoint('CUSTOMER_CHECKOUT_OPENED',async()=>{
+        const read=responseFor(c,'GET',/^\/api\/v1\/checkout\/[A-Za-z0-9_-]{43}\/status$/);
+        await navigate(c,url);const checkout=await body(await read);
+        requireSafe(checkout.checkoutStatus==='ACTIVE'&&checkout.canPay===true&&checkout.amount==='25.00'&&checkout.currency==='USD'&&checkout.paymentMethod==='CARD','CHECKOUT_READ_CONTRACT');
+        await expect(c.getByRole('heading',{name:'PayMesh AI · Customer checkout'})).toBeVisible();
+      },{page:c,expectedState:'PUBLIC_CHECKOUT',expectedHttp:'CHECKOUT_READ'});
       await expect(c.getByRole('heading',{name:'PayMesh AI · Customer checkout'})).toBeVisible();
       await expect(c.getByText('25.00 USD',{exact:true})).toBeVisible();
-      await c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click();
+      await expect(c.getByText('CARD',{exact:true})).toBeVisible();
+      await checkpoint('CUSTOMER_PAYMENT_REVIEWED',()=>c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click(),{page:c,expectedState:'PAYMENT_REVIEW'});
       await expect(c.getByRole('heading',{name:'Confirm simulated payment',exact:true})).toBeFocused();
       await c.getByRole('button',{name:'Back to checkout',exact:true}).click();
-      await c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click();
+      await checkpoint('CUSTOMER_PAYMENT_REVIEWED',()=>c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click(),{page:c,expectedState:'PAYMENT_REVIEW'});
       const paid=responseFor(c,'POST',/^\/api\/v1\/checkout\/[A-Za-z0-9_-]{43}\/pay$/);
-      const receipt=await checkpoint('CHECKOUT_SUBMITTED',async()=>{await c.getByRole('button',{name:'Confirm Pay (simulation only)',exact:true}).click();return body(await paid);});
+      const receipt=await checkpoint('CHECKOUT_SUBMITTED',async()=>{await c.getByRole('button',{name:'Confirm Pay (simulation only)',exact:true}).click();return body(await paid);},{page:c,expectedState:'PAID_RECEIPT',expectedHttp:'CHECKOUT_PAY'});
       requireSafe(receipt.checkoutStatus==='PAID','PAID_CHECKOUT_REQUIRED');
-      await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
-      await refreshPage(c);
-      await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
+      await checkpoint('CHECKOUT_RECEIPT_VISIBLE',()=>expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible(),{page:c,expectedState:'PAID_RECEIPT'});
+      await checkpoint('CHECKOUT_RECEIPT_VISIBLE',async()=>{
+        const read=responseFor(c,'GET',/^\/api\/v1\/checkout\/[A-Za-z0-9_-]{43}\/status$/);await refreshPage(c);
+        requireSafe((await body(await read)).checkoutStatus==='PAID','PAID_CHECKOUT_REQUIRED');
+        await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
+      },{page:c,expectedState:'PAID_RECEIPT',expectedHttp:'CHECKOUT_READ'});
       await c.setViewportSize({width:375,height:812});await noOverflow(c);
+      let paidLink;
+      await checkpoint('CHECKOUT_MERCHANT_STATUS_CONFIRMED',async()=>{
+        const read=responseFor(p,'GET',`/api/v1/merchant/payment-links/${link.linkId}`);
+        await root.getByRole('button',{name:'Refresh link',exact:true}).click();paidLink=await body(await read);
+        requireSafe(paidLink.status==='PAID'&&paidLink.amount==='25.00'&&paidLink.currency==='USD'&&/^[0-9a-f-]{36}$/.test(paidLink.paymentId),'PAID_LINK_REQUIRED');
+      },{page:p,expectedState:'MERCHANT_PAID_LINK',expectedHttp:'LINK_READ'});
+      await checkpoint('CHECKOUT_PAYMENT_AVAILABLE',async()=>{
+        const paymentRead=responseFor(p,'GET',`/api/v1/payments/${paidLink.paymentId}`);
+        await root.getByRole('button',{name:'Open authorized payment',exact:true}).click();
+        const linkedPayment=await body(await paymentRead);requireSafe(linkedPayment.status==='SUCCESS'&&exactAmount(linkedPayment.amount)==='25.00'&&linkedPayment.currency==='USD','CHECKOUT_PAYMENT_CONTRACT');
+        await expect(p.locator('#details-id')).toHaveText(paidLink.paymentId);await expect(p.locator('#refund-amount')).toBeEnabled();
+        await expect(p.locator('#refund-summary')).toContainText('25.00 USD');
+      },{page:p,expectedState:'MERCHANT_PAID_LINK',expectedHttp:'PAYMENT_READ'});
     });
     await test.step('MERCHANT_ADMIN_CHAT_AND_SAVED_HISTORY', async () => {
       for(const [actor,role] of [[merchant,'merchant'],[admin,'admin']]) {
@@ -207,13 +235,13 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
           modelSuccess(await checkpoint('CHAT_SUBMITTED',async()=>{
             if(role==='merchant')await composer.press('Enter');else await root.getByRole('button',{name:'Send question',exact:true}).click();
             return body(await reply);
-          }));
+          },{page:p,expectedState:'CHAT_ANSWER',expectedHttp:'CHAT_MESSAGE'}));
           await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
           requireSafe((await root.locator('.ai-assistant .ai-answer').innerText()).trim().length>0,'VISIBLE_ANSWER_REQUIRED');
           await openHistory(root);
           await root.getByLabel('Conversation title',{exact:true}).fill(`Browser ${role} history`);
           const renamed=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/rename$`));
-          await checkpoint('HISTORY_RENAMED',async()=>{await root.getByRole('button',{name:'Rename saved conversation',exact:true}).click();return body(await renamed);});
+          await checkpoint('HISTORY_RENAMED',async()=>{await root.getByRole('button',{name:'Rename saved conversation',exact:true}).click();return body(await renamed);},{page:p,expectedState:'SAVED_HISTORY',expectedHttp:'HISTORY_RENAME'});
           await expect(root.locator('.conversation-history')).toContainText(`Current: Browser ${role} history`);
           await root.getByLabel('Search owned conversation titles').fill(`Browser ${role} history`);
           const ownList=responseFor(p,'GET',`/api/v1/${role}/ai/conversations`);
@@ -222,7 +250,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
           const selected=root.getByRole('button',{name:`Browser ${role} history · Current`,exact:true});
           await expect(selected).toBeVisible();
           const historyRead=responseFor(p,'GET',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/messages$`));
-          const saved=await checkpoint('HISTORY_LOADED',async()=>{await safeDialog(p,()=>selected.click());return body(await historyRead);});
+          const saved=await checkpoint('HISTORY_LOADED',async()=>{await safeDialog(p,()=>selected.click());return body(await historyRead);},{page:p,expectedState:'SAVED_HISTORY',expectedHttp:'HISTORY_READ'});
           requireSafe(saved.total===1,'SAVED_TURN_REQUIRED');
           await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
           const before=submissions;
@@ -233,7 +261,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
             // never turn it into an explicit-load workaround or silent pass.
             await expect(p).toHaveURL(ORIGIN+`/${role}/ai`);
             await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
-          });
+          },{page:p,expectedState:'SAVED_HISTORY'});
           requireSafe(submissions===before,'RESTORE_INVOKED_MODEL');
           if(role==='merchant') {
             await navigate(other.page,'/merchant/ai');
@@ -258,7 +286,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
           await p.setViewportSize({width:1440,height:1000});
           await openHistory(root);
           const deleted=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/delete$`));
-          await checkpoint('HISTORY_DELETED',async()=>{await safeDialog(p,()=>root.getByRole('button',{name:'Delete saved conversation',exact:true}).click());return body(await deleted);});
+          await checkpoint('HISTORY_DELETED',async()=>{await safeDialog(p,()=>root.getByRole('button',{name:'Delete saved conversation',exact:true}).click());return body(await deleted);},{page:p,expectedState:'SAVED_HISTORY',expectedHttp:'HISTORY_DELETE'});
           await expect(root.locator('.conversation-history')).toContainText('No saved conversation selected');
           await expect(root.locator('.ai-assistant')).toHaveCount(0);
         } finally {p.off('request',observe);}

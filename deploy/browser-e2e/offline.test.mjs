@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-const fixtureSource=fs.readFileSync(new URL('./fixtures.js',import.meta.url),'utf8').replace("import { test as base, expect } from '@playwright/test';", "const base={extend: definitions => ({...definitions,step:async(code,action)=>action(),info:()=>({annotations:[]})})}; const expect=()=>{throw new Error('UI_NOT_EXECUTED_OFFLINE');};");
+const fixtureSource=fs.readFileSync(new URL('./fixtures.js',import.meta.url),'utf8').replace("import { test as base, expect } from '@playwright/test';", "const info={annotations:[]};const base={extend: definitions => ({...definitions,step:async(code,action)=>action(),info:()=>info})}; const expect=()=>{throw new Error('UI_NOT_EXECUTED_OFFLINE');};");
 const budgetSource=fs.readFileSync(new URL('./auth-budget.js',import.meta.url),'utf8');
 const budgetURL='data:text/javascript;base64,'+Buffer.from(budgetSource).toString('base64');
 const fixtureWithBudget=fixtureSource.replace("import { authBudget, AUTH_PATHS } from './auth-budget.js';","import {authBudget,AUTH_PATHS} from '"+budgetURL+"';");
@@ -46,7 +46,7 @@ test('browser network policy permits only frontend origin',async()=>{
 });
 async function reporter() {
   const c=context();process.env.BROWSER_OFFLINE_FIXTURE=c.dir;
-  const source=fs.readFileSync(new URL('./sanitized-reporter.js',import.meta.url),'utf8').replace("import { guard, ACTION_CODES } from './fixtures.js';","const guard=()=>process.env.BROWSER_OFFLINE_FIXTURE; const ACTION_CODES=new Set(['ADMIN_LOGIN_STARTED', 'LOGIN_RESPONSE_RECEIVED', 'ADMIN_DASHBOARD_VISIBLE', 'MERCHANT_SEARCH_STARTED', 'MERCHANT_SEARCH_INPUT', 'MERCHANT_SEARCH_COMPLETED', 'MERCHANT_DETAIL_OPENED', 'APPROVAL_REVIEW_FILLED', 'APPROVAL_DIALOG_OPENED', 'APPROVAL_CANCELLED', 'APPROVAL_SUBMITTED', 'APPROVAL_CONFIRMED', 'ACTIVE_MERCHANT_LOGIN', 'PAYMENT_CREATED', 'PAYMENT_PROCESSED', 'PAYMENT_LIST_OPENED', 'OWNERSHIP_DENIAL', 'INVESTIGATION_SUBMITTED', 'REFUND_SUBMITTED', 'CHECKOUT_LINK_CREATED', 'CHECKOUT_SUBMITTED', 'CHAT_SUBMITTED', 'HISTORY_RENAMED', 'HISTORY_LISTED', 'HISTORY_LOADED', 'HISTORY_REFRESHED', 'HISTORY_DELETED', 'CROSS_TAB_RESTORED', 'LOGOUT_CONFIRMED', 'PORTAL_NAVIGATION', 'SESSION_REFRESH']);");
+  const source=fs.readFileSync(new URL('./sanitized-reporter.js',import.meta.url),'utf8').replace("import { guard, ACTION_CODES, UI_STATES, ROUTE_CODES, HTTP_CODES } from './fixtures.js';","const guard=()=>process.env.BROWSER_OFFLINE_FIXTURE;"+['ACTION_CODES','UI_STATES','ROUTE_CODES','HTTP_CODES'].map(name=>'const '+name+'=new Set('+JSON.stringify([...f[name]])+');').join(''));
   const {default:Reporter}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
   return {instance:new Reporter(),classify:(await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'))).classifyFailure,dir:c.dir};
 }
@@ -175,7 +175,7 @@ test('stdout diagnostics contain only safe fields and retain JSON evidence',asyn
   assert.equal(output.includes('PRIVATE_CANARY'),false);assert.equal(output.includes('not-exported'),false);
   const lines=output.trim().split('\n');assert.equal(lines.length,2);
   assert.ok(lines[0].startsWith('BROWSER_FAILURE_DIAGNOSTIC='));const value=JSON.parse(lines[0].split('=',2)[1]);
-  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory','loginState','location','lastCompletedActionCode','pendingActionCode','lastObservedHttpStatus'].sort());
+  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory','loginState','location','lastCompletedActionCode','pendingActionCode','lastObservedHttpStatus','expectedUICategory','actualRouteCategory','lastRelevantHttpStatus','httpEndpointCategory'].sort());
   assert.equal(value.errorCode,'PRIVATE_OUTPUT_REQUIRED');assert.equal(value.chromiumLaunchStatus,'NOT_OBSERVED');assert.equal(value.stageCode,'HOOK_OR_FIXTURE_SETUP');
   const saved=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8');assert.equal(saved.includes('PRIVATE_CANARY'),false);assert.equal(JSON.parse(saved).tests[0].diagnostic.errorCode,'PRIVATE_OUTPUT_REQUIRED');
 });
@@ -371,4 +371,60 @@ test('candidate browser evidence cannot claim that every image was published',as
     const report=JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json')));
     assert.equal(report.publishedImagesOnly,false);assert.equal(report.frontendArtifactKind,'source-built-candidate');assert.equal(report.success,false);
   }finally{if(previous===undefined)delete process.env.E2E_FRONTEND_KIND;else process.env.E2E_FRONTEND_KIND=previous;}
+});
+
+test('actual link field builder includes option text in implicit select labels',async()=>{
+  const {default:vm}=await import('node:vm');const source=fs.readFileSync(new URL('../../frontend/assets/js/payment-links/view.js',import.meta.url),'utf8');
+  const start=source.indexOf('function field('),end=source.indexOf('\n  function render',start);
+  const element=(tag,text)=>({tag,text:text||'',children:[],append(...nodes){this.children.push(...nodes);},get textContent(){return this.text+this.children.map(x=>x.textContent).join('');}});
+  const field=vm.runInNewContext('('+source.slice(start,end)+')',{element,state:{mutating:false}});
+  for(const [label,name,options] of [['Currency','currency',[['INR','INR'],['USD','USD']]],['Payment method','paymentMethod',[['UPI','UPI'],['CARD','CARD']]]]){
+    const form=element('form');const select=field(form,label,name,options[0][0],options);
+    assert.notEqual(form.children[0].textContent,label);assert.equal(select.tag,'select');assert.equal(select.name,name);
+    assert.equal(form.children[0].textContent,label+options.map(x=>x[1]).join(''));
+  }
+  const journey=fs.readFileSync(new URL('./journey.spec.js',import.meta.url),'utf8');
+  assert.ok(journey.includes('select[name="currency"]'));assert.ok(journey.includes('select[name="paymentMethod"]'));
+  assert.ok(journey.includes("toHaveValue('USD')"));assert.ok(journey.includes("toHaveValue('CARD')"));
+  assert.equal(journey.includes("getByLabel('Currency',{exact:true})"),false);
+});
+test('route and HTTP categories discard checkout tokens, query values and private identifiers',()=>{
+  const token='T'.repeat(43),url='http://127.0.0.1:15500/checkout/'+token+'?private=PRIVATE_CANARY';
+  assert.equal(f.routeCategory(url),'PUBLIC_CHECKOUT');assert.equal(f.routeCategory('https://foreign.invalid/'+token),'OTHER_ORIGIN');
+  assert.equal(f.httpCategory('http://127.0.0.1:15500/api/v1/checkout/'+token+'/pay','POST'),'CHECKOUT_PAY');
+  assert.equal(f.httpCategory('http://127.0.0.1:15500/api/v1/checkout/'+token+'/pay','GET'),'OTHER_REQUEST');
+  assert.equal(f.httpCategory('http://127.0.0.1:15500/api/v1/merchant/payment-links','POST'),'LINK_CREATE');
+  assert.equal(f.routeCategory('http://127.0.0.1:15500/merchant/payment-links/create'),'MERCHANT_LINK_CREATE');
+  assert.equal(f.routeCategory('not a URL'),'UNAVAILABLE');
+});
+test('selector failure records expected form and actual route but cannot attribute an old 201',async()=>{
+  const annotations=f.test.info().annotations;annotations.length=0;
+  await assert.rejects(f.checkpoint('CHECKOUT_CURRENCY_SELECTED',async()=>{const e=new Error('Timeout 15000ms exceeded PRIVATE_CANARY');e.name='TimeoutError';throw e;},{page:{url:()=> 'http://127.0.0.1:15500/merchant/payment-links/create'},expectedState:'LINK_CREATE_FORM'}));
+  const {instance:r,dir}=await reporter(),t={id:'synthetic',title:'COMPLETE_NATIVE_BROWSER_JOURNEY',annotations:[{type:'safe-http-status',description:'201'},...annotations]};
+  r.onTestBegin(t);r.onStepBegin(t,null,{category:'test.step',title:'PAYMENT_LINK_AND_CUSTOMER_CHECKOUT'});r.onStepBegin(t,null,{category:'test.step',title:'CHECKOUT_CURRENCY_SELECTED'});
+  r.onTestEnd(t,{status:'failed',duration:1,error:{name:'TimeoutError',message:'Timeout 15000ms exceeded PRIVATE_CANARY',location:{file:'journey.spec.js',line:168}}});finish(r,{status:'failed'});
+  const record=JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json'))).tests[0];
+  assert.equal(record.expectedUICategory,'LINK_CREATE_FORM');assert.equal(record.actualRouteCategory,'MERCHANT_LINK_CREATE');assert.equal(record.lastRelevantHttpStatus,null);assert.equal(record.lastObservedHttpStatus,201);
+  assert.equal(JSON.stringify(record).includes('PRIVATE_CANARY'),false);
+});
+test('HTTP correlation accepts only the expected endpoint within the active checkpoint',async()=>{
+  for(const [url,method,status,expected] of [['/api/v1/checkout/'+'T'.repeat(43)+'/pay','POST',200,200],['/api/v1/payments/'+'a'.repeat(36)+'/refund','POST',201,null]]){
+    const annotations=f.test.info().annotations;annotations.length=0;
+    const response={url:()=>f.ORIGIN+url,status:()=>status,request:()=>({method:()=>method})};
+    await assert.rejects(f.checkpoint('CHECKOUT_SUBMITTED',async()=>{await f.responseFor({waitForResponse:()=>Promise.resolve(response)},method,url);throw new Error('SYNTHETIC_UI_FAILURE');},{page:{url:()=> f.ORIGIN+'/checkout/'+'T'.repeat(43)},expectedState:'PAID_RECEIPT',expectedHttp:'CHECKOUT_PAY'}));
+    const context=JSON.parse(annotations.find(x=>x.type==='safe-ui-context').description);assert.equal(context.httpStatus,expected);assert.equal(context.routeCode,'PUBLIC_CHECKOUT');assert.equal(JSON.stringify(context).includes('T'.repeat(43)),false);
+  }
+});
+test('malformed or mismatched UI context never leaks into the sanitized reporter',async()=>{
+  const {instance:r,dir}=await reporter(),t={id:'synthetic',title:'COMPLETE_NATIVE_BROWSER_JOURNEY',annotations:[{type:'safe-ui-context',description:JSON.stringify({actionCode:'CHECKOUT_SUBMITTED',expectedState:'PRIVATE_CANARY',routeCode:'PUBLIC_CHECKOUT',httpStatus:200,httpCode:'CHECKOUT_PAY'})}]};
+  r.onTestBegin(t);r.onStepBegin(t,null,{category:'test.step',title:'CHECKOUT_SUBMITTED'});r.onTestEnd(t,{status:'failed',duration:1,error:{message:'PRIVATE_CANARY'}});finish(r,{status:'failed'});
+  const record=JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json'))).tests[0];assert.equal(record.expectedUICategory,null);assert.equal(record.lastRelevantHttpStatus,null);assert.equal(JSON.stringify(record).includes('PRIVATE_CANARY'),false);
+  await assert.rejects(f.checkpoint('CHECKOUT_SUBMITTED',async()=>{},{expectedState:'PRIVATE_CANARY'}),/FIXED_ACTION_CODE_REQUIRED/);
+});
+
+test('raw payment DTO numbers normalize only for synthetic browser comparisons',async()=>{
+  const payment=await f.body({status:()=>200,text:async()=>'{"amount":25.00,"currency":"USD"}'});
+  assert.equal(f.exactAmount(payment.amount),'25.00');
+  const journey=fs.readFileSync(new URL('./journey.spec.js',import.meta.url),'utf8');
+  assert.ok(journey.includes("exactAmount(linkedPayment.amount)==='25.00'"));assert.ok(journey.includes("toContainText('25.00 USD')"));
 });

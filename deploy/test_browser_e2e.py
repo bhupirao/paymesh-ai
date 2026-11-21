@@ -241,6 +241,32 @@ class BrowserPolicyTests(unittest.TestCase):
             self.assertNotIn(forbidden,self.journey+fixture+budget)
         self.assertLess(budget.index('this.active.set(page,reservation)'),budget.index('await this.sleep(remaining)'))
 
+    def test_checkout_selectors_target_real_named_controls_with_value_assertions(self):
+        view=(ROOT/'frontend/assets/js/payment-links/view.js').read_text()
+        for name,label,value in [('currency','Currency','USD'),('paymentMethod','Payment method','CARD')]:
+            self.assertIn("field(f,'"+label+"','"+name+"'",view)
+            self.assertIn('select[name="'+name+'"]',self.journey)
+            self.assertIn("toHaveValue('"+value+"')",self.journey)
+            self.assertNotIn("getByLabel('"+label+"',{exact:true})",self.journey)
+        self.assertIn("checkpoint('CHECKOUT_FORM_READY'",self.journey)
+
+    def test_checkout_confirmation_preserves_native_controls_and_merchant_readback(self):
+        for value in ['Confirm create payment link','Pay — review simulated payment','Back to checkout','Confirm Pay (simulation only)','Refresh link','Open authorized payment']:
+            self.assertIn(value,self.journey)
+        self.assertIn("paidLink.status==='PAID'",self.journey)
+        self.assertIn("linkedPayment.status==='SUCCESS'",self.journey)
+        self.assertIn("await expect(p.locator('#refund-amount')).toBeEnabled()",self.journey)
+        self.assertEqual(self.journey.count("checkpoint('REFUND_SUBMITTED'"),1)
+
+    def test_checkout_ui_diagnostics_are_allowlisted_and_scoped(self):
+        fixture=(HERE/'fixtures.js').read_text();reporter=(HERE/'sanitized-reporter.js').read_text()
+        for name in ['expectedUICategory','actualRouteCategory','lastRelevantHttpStatus','httpEndpointCategory']:
+            self.assertIn(name,reporter)
+        self.assertIn('UI_STATES.has(value.expectedState)',reporter)
+        self.assertIn('ROUTE_CODES.has(value.routeCode)',reporter)
+        self.assertIn('value.actionCode!==pending',reporter)
+        self.assertIn('httpCategory(raw,method)===scope.expectedHttp',fixture)
+
     def test_actual_java_limiter_allows_budget_denies_excess_and_expires(self):
         # Compile only the production JDK-only limiter and an ephemeral harness.
         # No Maven build, Spring context, database, service, or application edit.
@@ -280,7 +306,7 @@ public class AuthBudgetProof {
     def test_real_offline_helpers_and_reporter(self):
         result=subprocess.run(['node',str(HERE/'offline.test.mjs')],capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('# pass 51',result.stdout)
+        self.assertIn('# pass 57',result.stdout)
         self.assertNotIn('NATIVE_CHROMIUM_E2E_PASS',result.stdout)
 
 
