@@ -1,0 +1,58 @@
+name: Frontend candidate build verification (no publication)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: frontend-candidate-build
+  cancel-in-progress: false
+jobs:
+  candidate:
+    if: github.repository == 'bhupirao/paymesh-ai' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # reviewed v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Offline candidate and deployment regressions
+        run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: a4171a5c090224622d584d45caa0d06e7997be9b
+          path: candidate-source
+          persist-credentials: false
+      - name: Admission and approved bootstrap regression
+        run: |
+          available=$(df -Pk "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
+          test "$available" -ge 2097152 || { echo 'INSUFFICIENT_CANDIDATE_DISK'; exit 1; }
+          node --experimental-vm-modules candidate-source/frontend/tests/session-bootstrap.test.mjs
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+        with:
+          cleanup: true
+      - name: Build frontend only and verify extracted bootstrap and image identity
+        id: build
+        run: python3 -B deploy/frontend_candidate.py build
+      - name: Retain sanitized candidate identity only
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: frontend-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/paymesh-frontend-candidate-${{ github.run_id }}-${{ github.run_attempt }}/candidate.json
+          if-no-files-found: warn
+          retention-days: 3
+          include-hidden-files: false
+      - name: Remove only owned candidate resources on success or failure
+        if: ${{ always() }}
+        timeout-minutes: 4
+        run: python3 -B deploy/frontend_candidate.py cleanup
+      - name: Retain sanitized cleanup evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: frontend-candidate-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/paymesh-frontend-candidate-${{ github.run_id }}-${{ github.run_attempt }}/cleanup.json
+          if-no-files-found: warn
+          retention-days: 3
+          include-hidden-files: false
