@@ -33,7 +33,7 @@ PayMesh brings those concerns into one application: explicit payment states, dat
 | Conversations | Owner/role/context-scoped saved history, restoration, title search, pagination, rename and deletion |
 | Sessions | Short-lived access tokens, persistent refresh sessions, Remember Me, logout-all and cross-tab account switching |
 
-**Current status:** V1–V14 and the features above are implemented. The complete isolated Java suite passed 415 tests. All eight hosted disposable container API E2E stages passed on `cefa7df83a5bf16d011e82041c95e2d93b9c637b`, including actual Qwen inference. Native browser E2E is not yet completed. Docker Hub images are not yet published; public GitHub visibility remains separately gated. No production deployment is claimed.
+**Current status:** V1–V14 and the features above are implemented. The complete isolated Java suite passed 415 tests. All eight hosted disposable container API E2E stages passed on `cefa7df83a5bf16d011e82041c95e2d93b9c637b`, including actual Qwen inference. All three native Chromium tests and ten journey stages passed in [candidate run 44877848710](https://github.com/bhupirao/paymesh-ai/actions/runs/44877848710). The repository is public and four v1.0.0 images are published. The corrected frontend is a verified source-built candidate; frontend v1.0.1 publication is prepared but has not occurred. No production deployment is claimed.
 
 ## Technology stack
 
@@ -183,7 +183,7 @@ python3 -B -m unittest discover -s frontend/tests -p 'test_*.py'
 python3 -B -m unittest discover -s deploy -p 'test_*.py'
 ```
 
-Run the Java harness from a shell without inherited application datasource/profile overrides; it refuses those overrides. PostgreSQL tools must be on PATH. Browser-compatible JavaScript suites are under `frontend/assets/js/*-tests.html` and use mocked APIs. Mocked UI assertions do not establish native browser behavior. No application tests were rerun for this README update.
+Run the Java harness from a shell without inherited application datasource/profile overrides; it refuses those overrides. PostgreSQL tools must be on PATH. Browser-compatible JavaScript suites are under `frontend/assets/js/*-tests.html` and use mocked APIs. Mocked UI assertions do not establish native browser behavior. Full Java/Python service suites were not rerun for this preparation; frontend and deployment offline checks were rerun.
 
 ## Docker and GitHub Actions
 
@@ -196,21 +196,21 @@ The container database starts independently and applies V1–V14. It does not co
 - [Backend CI](.github/workflows/backend-ci.yml): isolated PostgreSQL regression tests, packaging, Compose configuration checks and a backend image build.
 - [Manual image workflow](.github/workflows/container-images.yml): sequential remote builds for all four application images, build-only defaults, architecture checks and a separately gated Docker Hub publication path.
 
-Build-only uses a single-platform Docker exporter with provenance/SBOM attestations disabled for local runner loading; registry publication retains provenance. Remote builds and the [eight-stage disposable container API E2E](https://github.com/bhupirao/paymesh-ai/actions/runs/44652430877) passed on source `cefa7df83a5bf16d011e82041c95e2d93b9c637b`, with actual Qwen inference verified. Native browser E2E is not yet completed. Docker Hub images are not yet published; no production deployment is claimed. The [controlled publication guide](deploy/DOCKERHUB-V1-PUBLICATION.md) retains the tested source pin and requires protected environment approval. GitHub Actions dependencies are pinned to reviewed immutable commits.
+Build-only uses a single-platform Docker exporter with provenance/SBOM attestations disabled for local runner loading; registry publication retains provenance. Remote builds and the [eight-stage disposable container API E2E](https://github.com/bhupirao/paymesh-ai/actions/runs/44652430877) passed on source `cefa7df83a5bf16d011e82041c95e2d93b9c637b`, with actual Qwen inference verified. The four v1.0.0 images are published. [Native Chromium run 44877848710](https://github.com/bhupirao/paymesh-ai/actions/runs/44877848710) passed with the corrected source-built frontend and the unchanged published backends. That candidate is not yet a published frontend v1.0.1 image; no production deployment is claimed. The [controlled publication guide](deploy/DOCKERHUB-V1-PUBLICATION.md) retains the tested source pin and requires protected environment approval. GitHub Actions dependencies are pinned to reviewed immutable commits.
 
 ## Testing and verification
 
-These are **recorded results from separate scoped runs**, not a newly executed combined total. This readiness update reruns only offline deployment/workflow tests:
+These are **recorded results from separate scoped runs**, not a newly executed combined total. Historical application counts below retain their original scope; current candidate evidence is linked separately:
 
 | Scope | Recorded result | Evidence |
 | --- | --- | --- |
 | Complete isolated Java suite | 415 passed; zero failures, errors or skips | Isolated full-suite run after the chat wording test correction at [`cefa7df83`](https://github.com/bhupirao/paymesh-ai/commit/cefa7df83a5bf16d011e82041c95e2d93b9c637b); not rerun for these documentation/workflow changes |
 | Complete Python suite | 454 passed | [Customer-wording report](frontend/AI-CHAT-CUSTOMER-WORDING-REPORT.md) |
-| Frontend | 1,620 checks: 1,563 mocked JS assertions + 57 proxy/security tests | [Customer-wording report](frontend/AI-CHAT-CUSTOMER-WORDING-REPORT.md) |
-| Container/workflow preparation | 96 offline tests passed | [Workflow regression tests](deploy/test_image_workflow.py) and deployment tests; newly executed for public-release preparation |
+| Frontend offline | 1,563 JS assertions and 60 frontend/proxy tests passed; bootstrap/history coverage retained | [History-state fix](frontend/HISTORY-CONTROLS-FIX.md) and [release procedure](deploy/FRONTEND-V1.0.1-RELEASE.md) |
+| Container/workflow preparation | 214 offline tests passed, including 18 frontend-publication safety tests | [Publication tests](deploy/test_frontend_release.py); Docker operations mocked, no publication executed |
 | Hosted disposable container API E2E | All eight stages passed; actual Qwen inference verified | [Run 44652430877](https://github.com/bhupirao/paymesh-ai/actions/runs/44652430877), source `cefa7df83a5bf16d011e82041c95e2d93b9c637b`; synthetic accounts and fresh PostgreSQL volume |
-| Native browser E2E | Not yet completed | API E2E does not drive a browser or establish responsive/visual behavior |
-| Docker Hub publication | Images not yet published | Separate protected publication approval remains required |
+| Native Chromium E2E | Three tests and ten journey stages passed, real Qwen verified | [Candidate run 44877848710](https://github.com/bhupirao/paymesh-ai/actions/runs/44877848710); source-built corrected frontend plus published backends, not the old frontend image |
+| Docker Hub publication | Four v1.0.0 images published; frontend v1.0.1 not yet published | [Immutable release evidence](deploy/RELEASE-EVIDENCE.md) and [frontend-only release procedure](deploy/FRONTEND-V1.0.1-RELEASE.md) |
 
 ## Known limitations
 
@@ -236,9 +236,10 @@ No product screenshots are currently committed. This README includes no generate
 | AI and trusted integration | [Python conversational engine](ai-service/PHASE-6.9.1-CONVERSATIONAL-AI-REPORT.md) · [Java AI boundary](frontend/PHASE-6.9.2-SECURE-AI-CHAT-API-REPORT.md) |
 | Persistent chat | [Conversation management](frontend/PHASE-6.9.6-CONVERSATION-MANAGEMENT-REPORT.md) |
 | Historical evidence limitations | [Session/recovery report](frontend/PHASE-6.7.3-SESSIONS-PASSWORD-RECOVERY-REPORT.md) · [Admin/lifecycle closeout](frontend/PHASE-6.7.4-ADMIN-DASHBOARD-MERCHANT-MANAGEMENT-REPORT.md) |
+| Demo and verified releases | [Synthetic demo](deploy/PORTFOLIO-DEMO.md) · [Release evidence](deploy/RELEASE-EVIDENCE.md) |
 | Containers and publication | [Container guide](deploy/README.md) · [Publication plan](deploy/PUBLICATION-PLAN.md) |
 
-Phase reports preserve the state and evidence available when written. Their older activation-pending statements are historical; this README separates current implemented capabilities, verified API/model checks and remaining native-browser/publication work.
+Phase reports preserve the state and evidence available when written. Their older activation-pending statements are historical; this README separates current implemented capabilities, verified API/model checks and current candidate validation and remaining frontend publication work.
 
 ## Copyright and permitted access
 
@@ -247,3 +248,11 @@ Copyright © 2026 bhupirao. All rights reserved for project-authored code.
 PayMesh AI is source-available for public portfolio viewing and technical evaluation; it is **not open source**. No general license is granted to use, modify, redistribute, create derivative works from or commercially exploit project-authored code. Obtain separate written permission for such uses, except where rights are provided by applicable law or GitHub's Terms of Service.
 
 Public visibility does not prevent copying or remove GitHub-permitted viewing and platform forking rights. Third-party components retain their applicable licenses and copyright notices; this notice does not restrict rights granted by those third-party licenses.
+
+## Portfolio summary
+
+Built a Java/Spring Boot payment orchestration platform with PostgreSQL-backed
+idempotency, merchant authorization, simulated checkout/refunds and a private
+FastAPI/Qwen assistant grounded in authorized evidence. Verified published backend
+artifacts and a corrected frontend through disposable API and native Chromium
+journeys, including real local-model inference and explicit resource cleanup.

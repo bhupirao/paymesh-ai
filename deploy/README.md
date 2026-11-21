@@ -6,10 +6,13 @@ on source `cefa7df83a5bf16d011e82041c95e2d93b9c637b`. Actual Qwen inference was
 verified with `modelInferenceRequested=true` and `modelInferenceVerified=true`.
 The complete isolated Java suite separately passed **415 tests**. These are
 recorded results, not newly rerun application suites for this readiness update.
-**Native browser E2E is not yet completed. Docker Hub images are not yet published.**
+All four v1.0.0 images are now public. Three native Chromium tests and ten journey
+stages passed in [run 44877848710](https://github.com/bhupirao/paymesh-ai/actions/runs/44877848710),
+using the corrected source-built frontend with unchanged published backends.
+**Frontend v1.0.1 is prepared, not published.** See [release evidence](RELEASE-EVIDENCE.md),
+[frontend-only publication](FRONTEND-V1.0.1-RELEASE.md) and [synthetic demo](PORTFOLIO-DEMO.md).
 
-Repository: `bhupirao/paymesh-ai`, branch `main`. Public visibility and Docker Hub
-publication each require separate explicit approval. Docker, Colima/Podman and
+Repository: `bhupirao/paymesh-ai`, branch `main`. The GitHub repository is public. New image publication requires separate explicit approval. Docker, Colima/Podman and
 GitHub CLI remain unavailable on the inspected Mac; builds/E2E run on GitHub-hosted
 Linux runners without attaching local PostgreSQL data, protected files or models.
 
@@ -32,7 +35,7 @@ mounted. Flyway V1–V14 applies ONLY to this new disposable container database;
 Flyway/configuration/data is untouched. Do not import host dumps or credentials.
 Only frontend port **127.0.0.1:15500** is published (local host services remain on
 5500/18080/8000/8082). Compose defines five health checks; the hosted disposable API E2E verified
-container health and API workflows. This is not native browser E2E evidence.
+container health and API workflows. The original API E2E is distinct from the later corrected-candidate Chromium evidence linked above.
 
 Local HTTP cookie policy is preserved, not relaxed: Java uses development profile,
 loopback 18080 and its existing fixed port-5500 Origin. The container edge checks

@@ -9,7 +9,11 @@ Base URL examples use `http://127.0.0.1:18080` for the controlled local demo. Us
 | Route group | Authentication | Authorization |
 |---|---|---|
 | `GET /api/v1/payments/health`, `GET /actuator/health`, `GET /actuator/health/liveness`, `GET /actuator/health/readiness` | Public | Payment health is static; liveness excludes PostgreSQL; readiness includes PostgreSQL; health components/details are hidden |
-| `POST /api/v1/auth/login` | Public, rate limited | Credentials verified by existing account service; no other `/api/v1/auth/**` route is allowed |
+| `POST /api/v1/auth/login` | Public, rate limited | Credentials verified by the account service; persistent refresh-session cookie issued under browser policy |
+| `POST /api/v1/auth/register` | Public, bounded/rate-limited | Validated Merchant signup; 201 pending approval, 400 invalid input, 409 conflict; never grants Admin authority |
+| `POST /api/v1/auth/refresh` | HttpOnly refresh cookie | Browser Origin/CSRF policy, rotation/replay and current-session eligibility checks; returns new access token, rotates cookie; 401 invalid session, 403 browser-policy rejection |
+| `POST /api/v1/auth/logout` | Refresh-cookie session | Browser policy required; revoke current session and clear cookie; 200, or 403 if policy rejected |
+| `POST /api/v1/auth/logout-all` | Valid refresh session | Browser policy required; revoke account sessions; 200 or 401, 403 if policy rejected |
 | Payment, refund, and gateway history routes below | `Authorization: Bearer <JWT>` | ADMIN or MERCHANT; MERCHANT requires active verified membership for the payment's merchant. ADMIN cross-merchant business access is permitted and audited per the business-security design |
 | `GET /actuator`, `GET /actuator/info` | ADMIN JWT | ADMIN only |
 | Mock webhook routes | HMAC-SHA256 headers | Provider-specific configured webhook secret; JWT does not replace HMAC |
@@ -18,7 +22,7 @@ Base URL examples use `http://127.0.0.1:18080` for the controlled local demo. Us
 
 The method catalogs allow HEAD for GET routes and OPTIONS only on enumerated paths; these methods inherit the matching route's authentication policy. No additional endpoint is created by that method matching.
 
-JWT access tokens use RS256 and expire after 900 seconds (15 minutes). There is no refresh endpoint. Renew by authenticating again at login. Current account enabled status, authorization version, and roles are checked server-side. A merchant-supplied `merchantId` is accepted only after verified membership authorization. Out-of-scope resource access uses 404 to avoid existence disclosure; role or creation-scope denial uses 403.
+JWT access tokens use RS256 and expire after 900 seconds (15 minutes). Persistent sessions support `POST /api/v1/auth/refresh`; refresh credentials remain in HttpOnly cookies rather than browser storage. The frontend restores access through that endpoint, and logout/logout-all revoke sessions. Refresh/logout routes retain their explicit browser Origin/CSRF and cookie policies; they are not arbitrary bearer-token refresh APIs. Current account enabled status, authorization version, and roles are checked server-side. A merchant-supplied `merchantId` is accepted only after verified membership authorization. Out-of-scope resource access uses 404 to avoid existence disclosure; role or creation-scope denial uses 403.
 
 ## Common response and error behavior
 
@@ -334,10 +338,10 @@ All responses no-store. Amounts returned as exact decimal strings.
 
 Only INR+UPI/CARD→MOCK_RAZORPAY and USD+CARD→MOCK_STRIPE.
 No client ownership/gateway/status/payment association/URL fields accepted.
-No public checkout API or payment execution exists in this phase. Full schemas,
+Historical Phase682 scope: public checkout/payment execution was not part of that checkpoint. The current public checkout API is documented immediately below. Full schemas,
 status/errors and recovery limits: `frontend/PHASE-6.8.2-PAYMENT-LINKS-REPORT.md`.
 
-## Phase683 public customer checkout (V12/V13 pending live activation)
+## Public customer checkout (V12/V13; synthetic API and Chromium verification completed)
 
 Exact capability-scoped routes, never a Merchant/Admin session substitute:
 
