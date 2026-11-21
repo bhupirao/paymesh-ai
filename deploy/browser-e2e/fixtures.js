@@ -91,13 +91,58 @@ export async function newPage(browser) {
   await restrictNetwork(context);
   return { context, page: await context.newPage() };
 }
+export function loginRoute(raw) {
+  try {
+    const url=new URL(raw);
+    if(url.origin!==ORIGIN)return {routeCode:'OTHER_ORIGIN',suffixPresent:Boolean(url.search||url.hash)};
+    const known={'/merchant/login':'MERCHANT_LOGIN','/merchant/dashboard':'MERCHANT_DASHBOARD','/merchant/signup':'MERCHANT_SIGNUP','/admin/login':'ADMIN_LOGIN','/admin/dashboard':'ADMIN_DASHBOARD'};
+    return {routeCode:known[url.pathname]||'OTHER_ROUTE',suffixPresent:Boolean(url.search||url.hash)};
+  } catch { return {routeCode:'UNAVAILABLE',suffixPresent:false}; }
+}
+export function loginFeedback(text) {
+  const known={
+    '':'NO_FEEDBACK',
+    'Signing in securely…':'LOGIN_PENDING',
+    'Unable to sign in. Check your username and password.':'CREDENTIALS_REJECTED',
+    'Invalid authentication response. Please sign in again.':'INVALID_AUTH_RESPONSE',
+    'Your session is no longer valid. Please sign in again.':'SESSION_INVALID',
+    'Your session expired. Please sign in again.':'SESSION_EXPIRED',
+    'Previous sign-in response ignored. Sign in to the selected portal.':'STALE_RESPONSE',
+    'This portal requires the MERCHANT role. Use the correct portal for your account.':'ROLE_REJECTED',
+    'This portal requires the ADMIN role. Use the correct portal for your account.':'ROLE_REJECTED'
+  };
+  return Object.hasOwn(known,text)?known[text]:'OTHER_FEEDBACK';
+}
 export async function login(page, role, account) {
-  await page.goto(`/${role}/login`);
-  await page.locator('#login').fill(accounts[account]);
-  await page.locator('#password').fill(credential(account === 'admin' ? 'admin_password' : 'merchant_password'));
-  await page.locator('#login-submit').click();
-  await expect(page).toHaveURL(`${ORIGIN}/${role}/dashboard`);
-  await expect(page.locator('#identity')).toBeVisible();
+  let httpStatus=null;
+  const observe=response=>{
+    try {
+      const url=new URL(response.url());
+      if(url.origin===ORIGIN&&url.pathname==='/api/v1/auth/login'&&response.request().method()==='POST'){
+        const code=response.status();if(Number.isInteger(code)&&code>=100&&code<=599)httpStatus=code;
+      }
+    } catch { /* No raw URL or error is retained. */ }
+  };
+  page.on('response',observe);
+  try {
+    await page.goto(`/${role}/login`);
+    await page.locator('#login').fill(accounts[account]);
+    await page.locator('#password').fill(credential(account === 'admin' ? 'admin_password' : 'merchant_password'));
+    await page.locator('#login-submit').click();
+    await expect(page).toHaveURL(`${ORIGIN}/${role}/dashboard`);
+    await expect(page.locator('#identity')).toBeVisible();
+  } catch(error) {
+    // Preserve the original assertion; observe only fixed classifications.
+    try {
+      const title=test.info().title;
+      requireSafe(['COMPLETE_NATIVE_BROWSER_JOURNEY','MOBILE_KEYBOARD_AND_VALIDATION','DESKTOP_KEYBOARD_AND_VALIDATION'].includes(title),'CHROMIUM_WITNESS_REQUIRED');
+      let feedbackCode='UNAVAILABLE';
+      try {feedbackCode=loginFeedback((await page.locator('#login-feedback').textContent({timeout:1000}))||'');}catch{}
+      const state={testCode:title,portalRole:role==='admin'?'ADMIN':'MERCHANT',httpStatus,...loginRoute(page.url()),feedbackCode};
+      fs.writeFileSync(path.join(guard(),'browser-login-'+title+'.json'),JSON.stringify(state),{mode:0o600,flag:'wx'});
+    } catch { /* Missing diagnostic evidence never replaces the original failure. */ }
+    throw error;
+  } finally {page.off('response',observe);}
 }
 export function responseFor(page, method, pathname) {
   return page.waitForResponse(response => {

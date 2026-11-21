@@ -171,7 +171,7 @@ test('stdout diagnostics contain only safe fields and retain JSON evidence',asyn
   assert.equal(output.includes('PRIVATE_CANARY'),false);assert.equal(output.includes('not-exported'),false);
   const lines=output.trim().split('\n');assert.equal(lines.length,2);
   assert.ok(lines[0].startsWith('BROWSER_FAILURE_DIAGNOSTIC='));const value=JSON.parse(lines[0].split('=',2)[1]);
-  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory'].sort());
+  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory','loginState'].sort());
   assert.equal(value.errorCode,'PRIVATE_OUTPUT_REQUIRED');assert.equal(value.chromiumLaunchStatus,'NOT_OBSERVED');assert.equal(value.stageCode,'HOOK_OR_FIXTURE_SETUP');
   const saved=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8');assert.equal(saved.includes('PRIVATE_CANARY'),false);assert.equal(JSON.parse(saved).tests[0].diagnostic.errorCode,'PRIVATE_OUTPUT_REQUIRED');
 });
@@ -181,4 +181,52 @@ test('unknown infrastructure diagnostics remain fixed and do not expose errors',
   try{r.onEnd({status:'failed'});}finally{process.stdout.write=original;}
   assert.equal(output.includes('PRIVATE_CANARY'),false);
   const value=JSON.parse(output.split('\n')[0].split('=',2)[1]);assert.equal(value.testCode,'INFRASTRUCTURE');assert.equal(value.errorCode,'UNCLASSIFIED_TEST_FAILURE');assert.equal(value.category,'UNKNOWN');
+});
+
+test('registration succeeds on signup with pending status and explicit sign-in link contract',async()=>{
+  let source=fs.readFileSync(new URL('../../frontend/assets/js/portals/registration.js',import.meta.url),'utf8');
+  const signup=fs.readFileSync(new URL('../../frontend/assets/js/portals/signup.js',import.meta.url),'utf8');
+  source=source.replace("import { request } from '../api/client.js';", "const request=async()=>({status:201,data:{accountStatus:'PENDING_APPROVAL',message:'Your account has been created successfully. You can now sign in using your email and password.'}});")
+    .replace("import { getVersion } from '../auth/session.js';", "const getVersion=()=>0;")
+    .replace("import { validateSignup } from './signup.js';", "import {validateSignup} from 'data:text/javascript;base64,"+Buffer.from(signup).toString('base64')+"';");
+  const {createRegistration}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+  const events=[];await createRegistration(value=>events.push(value)).submit({firstName:'Synthetic',lastName:'Test',businessName:'Disposable',email:'signup@e2e.example.test',mobile:'+12025550101',businessType:'COMPANY',country:'US',password:'Synthetic-passphrase-only',confirmPassword:'Synthetic-passphrase-only',terms:true});
+  assert.equal(events.some(v=>v.success===true),true);assert.equal(events.find(v=>v.success===true).message,'Your account has been created successfully. You can now sign in using your email and password.');
+  assert.equal(/navigate|location[.]|history[.]/.test(source),false);
+});
+
+test('actual router sends authenticated pending Merchant login to onboarding dashboard',async()=>{
+  let source=fs.readFileSync(new URL('../../frontend/assets/js/portals/router.js',import.meta.url),'utf8')
+    .replace("import { MERCHANT_PAGES } from '../merchant/routes.js';", "const MERCHANT_PAGES={'/merchant/dashboard':'Dashboard'};")
+    .replace("import { ADMIN_PAGES } from '../admin/routes.js';", "const ADMIN_PAGES={'/admin/dashboard':'Dashboard'};")
+    .replace("import { checkExpiry, getSession, subscribe } from '../auth/session.js';", "const checkExpiry=()=>{},getSession=()=>null,subscribe=()=>()=>{};");
+  const {resolveRoute}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+  assert.equal(resolveRoute('/merchant/login',{roles:['MERCHANT'],accountStatus:'PENDING_APPROVAL'}).path,'/merchant/dashboard');
+  assert.equal(resolveRoute('/merchant/dashboard',null).path,'/merchant/login');
+  assert.equal(resolveRoute('/merchant/signup',null).page,'signup');
+});
+test('login route diagnostics never retain raw URLs, query values or checkout tokens',()=>{
+  const token='PRIVATE_CANARY_CHECKOUT_TOKEN';
+  assert.deepEqual(f.loginRoute('http://127.0.0.1:15500/merchant/login'),{routeCode:'MERCHANT_LOGIN',suffixPresent:false});
+  assert.deepEqual(f.loginRoute('http://127.0.0.1:15500/merchant/dashboard#'+token),{routeCode:'MERCHANT_DASHBOARD',suffixPresent:true});
+  assert.deepEqual(f.loginRoute('http://127.0.0.1:15500/checkout/'+token),{routeCode:'OTHER_ROUTE',suffixPresent:false});
+  assert.equal(JSON.stringify(f.loginRoute('https://foreign.invalid/'+token)).includes(token),false);
+});
+test('login feedback diagnostics classify only known UI strings',()=>{
+  assert.equal(f.loginFeedback('Invalid authentication response. Please sign in again.'),'INVALID_AUTH_RESPONSE');
+  assert.equal(f.loginFeedback('Unable to sign in. Check your username and password.'),'CREDENTIALS_REJECTED');
+  assert.equal(f.loginFeedback('PRIVATE_CANARY_USER_DATA'),'OTHER_FEEDBACK');
+});
+test('reporter retains only typed fixed-code login observation correlated to its test',async()=>{
+  const {instance:r,dir}=await reporter(),title='COMPLETE_NATIVE_BROWSER_JOURNEY';
+  fs.writeFileSync(path.join(dir,'browser-login-'+title+'.json'),JSON.stringify({testCode:title,portalRole:'MERCHANT',httpStatus:401,routeCode:'MERCHANT_LOGIN',suffixPresent:false,feedbackCode:'CREDENTIALS_REJECTED',private:'PRIVATE_CANARY'}),{mode:0o600});
+  r.onTestEnd({id:'internal',title},{status:'failed',duration:1,error:{message:'expect(page).toHaveURL PRIVATE_CANARY'}});finish(r,{status:'failed'});
+  const text=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8'),value=JSON.parse(text).tests[0].loginState;
+  assert.equal(value.httpStatus,401);assert.equal(value.routeCode,'MERCHANT_LOGIN');assert.equal(value.feedbackCode,'CREDENTIALS_REJECTED');assert.equal(text.includes('PRIVATE_CANARY'),false);
+});
+test('malformed login observations are ignored without exposing their values',async()=>{
+  const {instance:r,dir}=await reporter(),title='COMPLETE_NATIVE_BROWSER_JOURNEY';
+  fs.writeFileSync(path.join(dir,'browser-login-'+title+'.json'),JSON.stringify({testCode:title,portalRole:'MERCHANT',httpStatus:200,routeCode:'PRIVATE_CANARY',suffixPresent:false,feedbackCode:'NO_FEEDBACK'}),{mode:0o600});
+  r.onTestEnd({id:'internal',title},{status:'failed',duration:1});finish(r,{status:'failed'});
+  const text=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8');assert.equal(JSON.parse(text).tests[0].loginState,null);assert.equal(text.includes('PRIVATE_CANARY'),false);
 });

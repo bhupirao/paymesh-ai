@@ -42,6 +42,21 @@ function witness(folder, code) {
   } catch { return 'NOT_OBSERVED'; }
 }
 
+function loginWitness(folder, code) {
+  if(!['COMPLETE_NATIVE_BROWSER_JOURNEY','MOBILE_KEYBOARD_AND_VALIDATION','DESKTOP_KEYBOARD_AND_VALIDATION'].includes(code))return null;
+  try {
+    const file=path.join(folder,'browser-login-'+code+'.json'),stat=fs.lstatSync(file);
+    if(!stat.isFile()||stat.isSymbolicLink()||stat.uid!==process.getuid()||stat.mode&0o077||stat.size>1024)return null;
+    const value=JSON.parse(fs.readFileSync(file,'utf8'));
+    if(value.testCode!==code||!['MERCHANT','ADMIN'].includes(value.portalRole)
+      ||!(value.httpStatus===null||Number.isInteger(value.httpStatus)&&value.httpStatus>=100&&value.httpStatus<=599)
+      ||!['MERCHANT_LOGIN','MERCHANT_DASHBOARD','MERCHANT_SIGNUP','ADMIN_LOGIN','ADMIN_DASHBOARD','OTHER_ORIGIN','OTHER_ROUTE','UNAVAILABLE'].includes(value.routeCode)
+      ||typeof value.suffixPresent!=='boolean'
+      ||!['NO_FEEDBACK','LOGIN_PENDING','CREDENTIALS_REJECTED','INVALID_AUTH_RESPONSE','SESSION_INVALID','SESSION_EXPIRED','STALE_RESPONSE','ROLE_REJECTED','OTHER_FEEDBACK','UNAVAILABLE'].includes(value.feedbackCode))return null;
+    return {portalRole:value.portalRole,httpStatus:value.httpStatus,routeCode:value.routeCode,suffixPresent:value.suffixPresent,feedbackCode:value.feedbackCode};
+  } catch {return null;}
+}
+
 export default class SanitizedReporter {
   constructor() { this.tests = []; this.steps = []; this.infrastructureError = false; this.activeStage = new Map(); this.failedStage = new Map(); this.began = new Map(); this.infrastructureFailure = null; }
   onStdOut() {}
@@ -66,7 +81,7 @@ export default class SanitizedReporter {
     this.tests.push({code,status,durationMs:elapsed(result.duration),elapsedMs:elapsed(Date.now()-(this.began.get(test.id)||Date.now())),
       chromiumLaunchStatus:launch==='SUCCEEDED'?'SUCCEEDED':diagnostic?.category==='BROWSER_LAUNCH'?'FAILED':'NOT_OBSERVED',
       failedStage:failed?(this.failedStage.get(test.id)||this.activeStage.get(test.id)||'HOOK_OR_FIXTURE_SETUP'):null,
-      diagnostic});
+      diagnostic,loginState:failed?loginWitness(guard(),code):null});
   }
   onEnd(result) {
     const folder = guard();
@@ -81,7 +96,7 @@ export default class SanitizedReporter {
       const d = t.diagnostic || classifyFailure(undefined, t.status);
       process.stdout.write('BROWSER_FAILURE_DIAGNOSTIC=' + JSON.stringify({testCode:t.code,stageCode:t.failedStage,
         category:d.category,errorCode:d.errorCode,elapsedMs:t.elapsedMs,chromiumLaunchStatus:t.chromiumLaunchStatus,
-        assertionCategory:d.assertionCategory,timeoutCategory:d.timeoutCategory}) + '\n');
+        assertionCategory:d.assertionCategory,timeoutCategory:d.timeoutCategory,loginState:t.loginState}) + '\n');
     }
     if (this.infrastructureError) {
       const d = this.infrastructureFailure || classifyFailure(undefined, 'failed');

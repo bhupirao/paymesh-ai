@@ -154,6 +154,18 @@ class BrowserPolicyTests(unittest.TestCase):
         self.assertIn('BROWSER_FAILURE_DIAGNOSTIC=',reporter)
         self.assertIn("SAFE_ERRORS.has(firstLine)",reporter)
 
+    def test_login_diagnostics_preserve_real_route_assertion_and_privacy(self):
+        fixture=(HERE/'fixtures.js').read_text()
+        login=fixture[fixture.index('export async function login('):fixture.index('export function responseFor')]
+        self.assertIn('await expect(page).toHaveURL(`${ORIGIN}/${role}/dashboard`)',login)
+        self.assertIn('throw error',login)
+        self.assertIn("page.off('response',observe)",login)
+        self.assertNotIn('accessToken',login)
+        self.assertNotIn('response.json(',login)
+        for step in self.steps:
+            if 'upload-artifact@' in step.get('uses',''):self.assertNotIn('browser-login-',step['with']['path'])
+        self.assertIn("'INVALID_AUTH_RESPONSE'",fixture)
+
     def test_js_and_python_syntax(self):
         for source in list(HERE.glob('*.js'))+list(HERE.glob('*.mjs')):subprocess.run(['node','--check',str(source)],check=True,capture_output=True)
         ast.parse((ROOT/'deploy/browser_bootstrap.py').read_text())
@@ -161,7 +173,7 @@ class BrowserPolicyTests(unittest.TestCase):
     def test_real_offline_helpers_and_reporter(self):
         result=subprocess.run(['node',str(HERE/'offline.test.mjs')],capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('# pass 26',result.stdout)
+        self.assertIn('# pass 32',result.stdout)
         self.assertNotIn('NATIVE_CHROMIUM_E2E_PASS',result.stdout)
 
 
