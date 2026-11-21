@@ -1,4 +1,4 @@
-import { test, expect, ORIGIN, accounts, credential, newPage, login, responseFor, body, modelSuccess, requireSafe, noOverflow, openHistory, safeDialog, exactAmount, logout, navigate, refreshPage, authAction, checkpoint } from './fixtures.js';
+import { test, expect, ORIGIN, accounts, credential, newPage, login, responseFor, body, modelSuccess, requireSafe, noOverflow, openHistory, safeDialog, exactAmount, logout, navigate, refreshPage, authAction, checkpoint, chatWitness } from './fixtures.js';
 
 test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
   test.setTimeout(900_000); // Includes bounded admission waits for the unchanged 60s auth limiter.
@@ -231,15 +231,25 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
           await composer.press('Shift+Enter');
           await expect(composer).toHaveValue('What is idempotency?\n');
           requireSafe(submissions===0,'SHIFT_ENTER_SENT_QUESTION');
+          chatWitness(false,false); // Reset per portal/request; never reuse a prior chat witness.
           const reply=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/messages$`));
           modelSuccess(await checkpoint('CHAT_SUBMITTED',async()=>{
             if(role==='merchant')await composer.press('Enter');else await root.getByRole('button',{name:'Send question',exact:true}).click();
             return body(await reply);
           },{page:p,expectedState:'CHAT_ANSWER',expectedHttp:'CHAT_MESSAGE'}));
-          await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
-          requireSafe((await root.locator('.ai-assistant .ai-answer').innerText()).trim().length>0,'VISIBLE_ANSWER_REQUIRED');
-          await openHistory(root);
-          await root.getByLabel('Conversation title',{exact:true}).fill(`Browser ${role} history`);
+          chatWitness(true,false); // Parsed response passed the strict real-model checks above.
+          await checkpoint('CHAT_ANSWER_RENDERED',async()=>{
+            await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
+            requireSafe((await root.locator('.ai-assistant .ai-answer').innerText()).trim().length>0,'VISIBLE_ANSWER_REQUIRED');
+            chatWitness(true,true);
+          },{page:p,expectedState:'CHAT_ANSWER'});
+          await checkpoint('HISTORY_TITLE_FILLED',async()=>{
+            await openHistory(root);
+            const title=root.getByLabel('Conversation title',{exact:true});
+            await expect(title).toBeVisible();
+            await expect(title).toBeEnabled();
+            await title.fill(`Browser ${role} history`);
+          },{page:p,expectedState:'SAVED_HISTORY'});
           const renamed=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/rename$`));
           await checkpoint('HISTORY_RENAMED',async()=>{await root.getByRole('button',{name:'Rename saved conversation',exact:true}).click();return body(await renamed);},{page:p,expectedState:'SAVED_HISTORY',expectedHttp:'HISTORY_RENAME'});
           await expect(root.locator('.conversation-history')).toContainText(`Current: Browser ${role} history`);

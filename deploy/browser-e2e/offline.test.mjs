@@ -175,7 +175,7 @@ test('stdout diagnostics contain only safe fields and retain JSON evidence',asyn
   assert.equal(output.includes('PRIVATE_CANARY'),false);assert.equal(output.includes('not-exported'),false);
   const lines=output.trim().split('\n');assert.equal(lines.length,2);
   assert.ok(lines[0].startsWith('BROWSER_FAILURE_DIAGNOSTIC='));const value=JSON.parse(lines[0].split('=',2)[1]);
-  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory','loginState','location','lastCompletedActionCode','pendingActionCode','lastObservedHttpStatus','expectedUICategory','actualRouteCategory','lastRelevantHttpStatus','httpEndpointCategory'].sort());
+  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory','loginState','location','lastCompletedActionCode','pendingActionCode','lastObservedHttpStatus','expectedUICategory','actualRouteCategory','lastRelevantHttpStatus','httpEndpointCategory','chatResponseCompleted','assistantRenderingObserved'].sort());
   assert.equal(value.errorCode,'PRIVATE_OUTPUT_REQUIRED');assert.equal(value.chromiumLaunchStatus,'NOT_OBSERVED');assert.equal(value.stageCode,'HOOK_OR_FIXTURE_SETUP');
   const saved=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8');assert.equal(saved.includes('PRIVATE_CANARY'),false);assert.equal(JSON.parse(saved).tests[0].diagnostic.errorCode,'PRIVATE_OUTPUT_REQUIRED');
 });
@@ -427,4 +427,35 @@ test('raw payment DTO numbers normalize only for synthetic browser comparisons',
   assert.equal(f.exactAmount(payment.amount),'25.00');
   const journey=fs.readFileSync(new URL('./journey.spec.js',import.meta.url),'utf8');
   assert.ok(journey.includes("exactAmount(linkedPayment.amount)==='25.00'"));assert.ok(journey.includes("toContainText('25.00 USD')"));
+});
+
+test('actual history view remains disabled until it is rendered after model becomes idle',async()=>{
+  const {default:vm}=await import('node:vm');
+  const source=fs.readFileSync(new URL('../../frontend/assets/js/conversations/view.js',import.meta.url),'utf8');
+  const element=(tag,text)=>({tag,text,children:[],append(...n){this.children.push(...n);},replaceChildren(...n){this.children=n;},setAttribute(){},addEventListener(){}});
+  const button=(text)=>element('button',text);
+  const create=vm.runInNewContext(source.replace(/^import .*;\n/gm,'').replace('export function createHistoryView','function createHistoryView')+'\ncreateHistoryView;',{element,button});
+  let modelBusy=true;
+  const view=create({store:{},canManage:()=>!modelBusy});
+  const state={items:[],busy:false,selected:{conversationId:'synthetic',title:'Synthetic',version:1,turnCount:1},page:0,total:0,messagePage:0,messageTotal:1};
+  view.render(state);
+  const label=view.root.children.find(n=>n.tag==='form'&&n.children[0]?.text==='Conversation title').children[0];
+  const title=label.children[0];assert.equal(title.disabled,true);
+  modelBusy=false;assert.equal(title.disabled,true); // No automatic DOM property recomputation.
+  view.render(state);assert.equal(title.disabled,false);
+  const presentation=fs.readFileSync(new URL('../../frontend/assets/js/chat/presentation.js',import.meta.url),'utf8');
+  assert.ok(presentation.includes('history?.render(next)'));
+  const render=presentation.slice(presentation.indexOf(' function render(next)'));
+  assert.equal(/history[?.]*render\(/.test(render),true); // Model notifications must also synchronize history after the production fix.
+});
+test('chat witness accepts only booleans and rejects impossible rendering state',()=>{
+  const a=f.test.info().annotations;a.length=0;f.chatWitness(true,false);f.chatWitness(true,true);
+  assert.deepEqual(JSON.parse(a.at(-1).description),{responseCompleted:true,assistantRendered:true});
+  assert.throws(()=>f.chatWitness('PRIVATE_CANARY',true));assert.throws(()=>f.chatWitness(false,true));
+});
+test('reporter retains only validated chat completion and rendering booleans',async()=>{
+  const {instance:r,dir}=await reporter();const t={id:'chat',title:'COMPLETE_NATIVE_BROWSER_JOURNEY',annotations:[{type:'safe-chat-witness',description:JSON.stringify({responseCompleted:true,assistantRendered:true,raw:'PRIVATE_CANARY'})}]};
+  r.onTestBegin(t);r.onTestEnd(t,{status:'failed',duration:1,error:{message:'PRIVATE_CANARY'}});finish(r,{status:'failed'});
+  const raw=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8'),record=JSON.parse(raw).tests[0];
+  assert.equal(record.chatResponseCompleted,true);assert.equal(record.assistantRenderingObserved,true);assert.equal(raw.includes('PRIVATE_CANARY'),false);
 });

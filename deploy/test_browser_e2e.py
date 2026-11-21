@@ -306,7 +306,7 @@ public class AuthBudgetProof {
     def test_real_offline_helpers_and_reporter(self):
         result=subprocess.run(['node',str(HERE/'offline.test.mjs')],capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('# pass 57',result.stdout)
+        self.assertIn('# pass 60',result.stdout)
         self.assertNotIn('NATIVE_CHROMIUM_E2E_PASS',result.stdout)
 
 

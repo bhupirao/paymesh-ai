@@ -72,6 +72,17 @@ function uiContext(annotations,pending) {
   return empty;
 }
 
+function chatState(annotations) {
+  for(const a of [...(annotations||[])].reverse()) {
+    if(a.type!=='safe-chat-witness'||typeof a.description!=='string'||a.description.length>128)continue;
+    try {const v=JSON.parse(a.description);
+      if(typeof v.responseCompleted==='boolean'&&typeof v.assistantRendered==='boolean'&&(!v.assistantRendered||v.responseCompleted))
+        return {chatResponseCompleted:v.responseCompleted,assistantRenderingObserved:v.assistantRendered};
+    }catch{}
+  }
+  return {chatResponseCompleted:null,assistantRenderingObserved:null};
+}
+
 export default class SanitizedReporter {
   constructor() { this.tests = []; this.steps = []; this.infrastructureError = false; this.activeStage = new Map(); this.failedStage = new Map(); this.began = new Map(); this.infrastructureFailure = null; this.lastAction=new Map();this.pendingAction=new Map();this.actionStack=new Map(); }
   onStdOut() {}
@@ -106,7 +117,7 @@ export default class SanitizedReporter {
       failedStage:failed?(this.failedStage.get(test.id)||this.activeStage.get(test.id)||'HOOK_OR_FIXTURE_SETUP'):null,
       diagnostic,loginState:failed?loginWitness(guard(),code):null,
       lastCompletedActionCode:this.lastAction.get(test.id)||null,pendingActionCode:this.pendingAction.get(test.id)||null,
-      ...uiContext(test.annotations,this.pendingAction.get(test.id)),
+      ...uiContext(test.annotations,this.pendingAction.get(test.id)),...chatState(test.annotations),
       lastObservedHttpStatus:(test.annotations||[]).filter(a=>a.type==='safe-http-status'&&/^[1-5][0-9]{2}$/.test(a.description)).map(a=>Number(a.description)).at(-1)||null});
   }
   onEnd(result) {
@@ -123,7 +134,7 @@ export default class SanitizedReporter {
       process.stdout.write('BROWSER_FAILURE_DIAGNOSTIC=' + JSON.stringify({testCode:t.code,stageCode:t.failedStage,
         category:d.category,errorCode:d.errorCode,elapsedMs:t.elapsedMs,chromiumLaunchStatus:t.chromiumLaunchStatus,
         assertionCategory:d.assertionCategory,timeoutCategory:d.timeoutCategory,loginState:t.loginState,location:d.location,
-        lastCompletedActionCode:t.lastCompletedActionCode,pendingActionCode:t.pendingActionCode,lastObservedHttpStatus:t.lastObservedHttpStatus,expectedUICategory:t.expectedUICategory,actualRouteCategory:t.actualRouteCategory,lastRelevantHttpStatus:t.lastRelevantHttpStatus,httpEndpointCategory:t.httpEndpointCategory}) + '\n');
+        lastCompletedActionCode:t.lastCompletedActionCode,pendingActionCode:t.pendingActionCode,lastObservedHttpStatus:t.lastObservedHttpStatus,expectedUICategory:t.expectedUICategory,actualRouteCategory:t.actualRouteCategory,lastRelevantHttpStatus:t.lastRelevantHttpStatus,httpEndpointCategory:t.httpEndpointCategory,chatResponseCompleted:t.chatResponseCompleted,assistantRenderingObserved:t.assistantRenderingObserved}) + '\n');
     }
     if (this.infrastructureError) {
       const d = this.infrastructureFailure || classifyFailure(undefined, 'failed');
