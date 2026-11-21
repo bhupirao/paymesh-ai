@@ -181,7 +181,7 @@ END $$; ROLLBACK;""")
 
 
 
-def cleanup_project(project, folder):
+def cleanup_project(project, folder, *, compose_file=COMPOSE, validate_config=None):
     """Remove only proven runner-project resources; preserve fixed-code evidence.
 
     Inspect the effective Compose model AND actual Docker ownership before down.
@@ -190,7 +190,7 @@ def cleanup_project(project, folder):
     import subprocess
     expected = project + '_container_pgdata'
     compose = ['docker', 'compose', '--project-name', project, '--env-file',
-               str(folder/'container.env'), '-f', COMPOSE]
+               str(folder/'container.env'), '-f', compose_file]
     report = {'success': False, 'project': project, 'volumesAbsent': False,
               'containersAbsent': False, 'failureCode': None}
 
@@ -210,7 +210,11 @@ def cleanup_project(project, folder):
     containers = ['docker', 'ps', '-a', '--no-trunc', '--filter',
                   'label=com.docker.compose.project='+project, '--format', '{{.ID}}']
     try:
+        require(compose_file in (COMPOSE, 'deploy/compose.candidate-browser.yaml'), 'CLEANUP_UNREVIEWED_COMPOSE')
+        require(compose_file == COMPOSE or validate_config is not None, 'CLEANUP_CANDIDATE_VALIDATION_REQUIRED')
         config = json.loads(command(compose+['config', '--format', 'json']))
+        if validate_config is not None:
+            validate_config(config)
         require(config.get('name') == project, 'CLEANUP_PROJECT_MISMATCH')
         require(set(config.get('volumes', {})) == {'container_pgdata'}, 'CLEANUP_UNEXPECTED_VOLUME_CONFIG')
         volume = config['volumes']['container_pgdata']

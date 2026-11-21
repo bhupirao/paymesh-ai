@@ -69,7 +69,7 @@ def write(path,text):
     with os.fdopen(os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY|os.O_NOFOLLOW,0o600),'w') as out:out.write(text)
 
 def collect(compose_file="deploy/compose.yaml"):
-    if compose_file not in ("deploy/compose.yaml", "deploy/compose.release-verify.yaml"):
+    if compose_file not in ("deploy/compose.yaml", "deploy/compose.release-verify.yaml", "deploy/compose.candidate-browser.yaml"):
         raise ValueError("UNREVIEWED_COMPOSE_FILE")
     project=runner_project();temp=Path(os.environ['RUNNER_TEMP']).resolve();folder=temp/project
     if os.environ.get('E2E_PROJECT')!=project or Path(os.environ.get('E2E_DIR','')).resolve()!=folder or Path(os.environ.get('E2E_ENV','')).resolve()!=folder/'container.env' or folder.is_symlink():raise ValueError('RUNNER_PROJECT_MISMATCH')

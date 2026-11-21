@@ -7,13 +7,13 @@ from container_e2e import require
 from release_artifact_e2e import ReleaseSuite
 
 
-def main(action):
-    suite = ReleaseSuite()  # Reuses the published-image and hosted-runner guards.
+def verify(suite, action, *, candidate=False):
     if action == 'seed':
         suite.check('browser_image_identity', suite.identity)
         suite.check('browser_empty_database_seed', suite.seed)
-        report = {'success': True, 'publishedImagesVerified': True, 'freshV14Verified': True,
-                  'adminBootstrapOnly': True, 'applicationImagesBuilt': False}
+        report = {'success': True, 'publishedImagesVerified': not candidate, 'freshV14Verified': True,
+                  'adminBootstrapOnly': True, 'applicationImagesBuilt': candidate,
+                  'frontendArtifactKind': 'source-built-candidate' if candidate else 'published-release'}
         with os.fdopen(os.open(suite.folder/'sanitized-browser-bootstrap.json', os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600), 'w') as output:
             output.write(json.dumps(report, indent=2)+'\n')
         print('BROWSER_ADMIN_BOOTSTRAP_ONLY_PASS')
@@ -26,6 +26,10 @@ def main(action):
         print('BROWSER_FINAL_FIXTURE_COUNTS_PASS')
         return 0
     require(False, 'UNKNOWN_BROWSER_BOOTSTRAP_ACTION')
+
+
+def main(action):
+    return verify(ReleaseSuite(), action)
 
 
 if __name__ == '__main__':

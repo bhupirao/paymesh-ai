@@ -363,3 +363,12 @@ test('invalid HTTP status annotations and unclassified steps never enter action 
   r.onTestBegin(t);r.onStepBegin(t,null,{category:'test.step',title:'PRIVATE_CANARY'});r.onTestEnd(t,{status:'failed',duration:1,error:{message:'PRIVATE_CANARY'}});finish(r,{status:'failed'});
   const record=JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json'))).tests[0];assert.equal(record.lastObservedHttpStatus,null);assert.equal(record.pendingActionCode,null);assert.equal(record.diagnostic.category,'UNKNOWN');
 });
+
+test('candidate browser evidence cannot claim that every image was published',async()=>{
+  const previous=process.env.E2E_FRONTEND_KIND;process.env.E2E_FRONTEND_KIND='source-built-candidate';
+  try{
+    const {instance:r,dir}=await reporter();r.onTestEnd({title:'DESKTOP_KEYBOARD_AND_VALIDATION'},{status:'passed',duration:1});finish(r,{status:'passed'});
+    const report=JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json')));
+    assert.equal(report.publishedImagesOnly,false);assert.equal(report.frontendArtifactKind,'source-built-candidate');assert.equal(report.success,false);
+  }finally{if(previous===undefined)delete process.env.E2E_FRONTEND_KIND;else process.env.E2E_FRONTEND_KIND=previous;}
+});
