@@ -85,6 +85,7 @@ jobs:
             ${{ env.E2E_DIR }}/sanitized-browser-bootstrap.json
             ${{ env.E2E_DIR }}/sanitized-browser-final.json
             ${{ env.E2E_DIR }}/sanitized-demo-failure.json
+            ${{ env.E2E_DIR }}/sanitized-demo-serve.json
             ${{ env.E2E_DIR }}/public-access-closed.json
             ${{ env.E2E_DIR }}/sanitized-cleanup.json
           include-hidden-files: false

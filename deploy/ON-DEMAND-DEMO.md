@@ -157,3 +157,39 @@ These are implementation checks, not a successful demo run. Source and tests are
 prepared in an isolated checkout; the original repository staging/index and
 working-file hashes were preserved. No commit, push, settings update, dispatch,
 public tunnel or image publication was performed.
+
+
+## First on-demand run investigation
+
+Run [44900649419](https://github.com/bhupirao/paymesh-ai/actions/runs/44900649419),
+source `7b830e4ad2d8128dbd8b4ec33bf18952bbbf7060`, failed on 2026-11-21.
+All five services, V14/empty-data admission, three Chromium tests, all ten journey
+stages and real Qwen inference passed. The serve step failed after about four
+seconds. `public-access-closed.json` confirms the owned public process exited;
+`sanitized-cleanup.json` confirms containers and project-owned volumes absent.
+
+The original catch-all discarded the exception and the private tunnel log was
+intentionally not uploaded. The artifact therefore cannot identify the exact
+serve operation, process exit code, CLI/provider error or OTP probe result.
+No successful `DEMO_OTP_GATE_VERIFIED_ACCESS_OPEN` witness was present. This is
+not evidence of an application, database, browser or model failure.
+
+Do not guess a CLI or provider fix from the generic failure. In particular, the
+pinned cloudflared configuration parser explicitly accepts EOF/empty configuration;
+`--config /dev/null` is not a proven fatal error. The CLI capability guard passed
+before the existing finally/closure receipt could be reached.
+
+Failure-only `sanitized-demo-serve.json` now records a fixed operation identifier,
+allowlisted error/type, numeric OS error where available, child exit status captured
+**before** owned termination, bounded fixed-category tunnel-output signals,
+startup/hostname-observed booleans, OTP HTTP status/challenge match and whether
+application access was opened. It is also emitted as one fixed-schema stdout
+record. It contains no raw exception messages, log excerpts, recipient email,
+URLs, headers, cookies, credentials, model content or checkout tokens. Unrecognized
+provider output remains unclassified. Existing generic failure and cleanup
+receipts are preserved; missing cleanup evidence remains UNKNOWN.
+
+The next hosted run requires separate commit/push and execution approval. No
+access gate, public Host/Origin rule, cookie/CSRF check, image lock or browser
+assertion was relaxed. Actual live root cause remains UNKNOWN until this evidence
+is captured; no automatic retry is introduced.

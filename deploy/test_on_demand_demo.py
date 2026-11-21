@@ -245,4 +245,84 @@ class LiveEntryTests(unittest.TestCase):
         self.assertIn('step summary only after the step finishes',docs)
         self.assertIn('Session closed.',(ROOT/'deploy/on_demand_demo.py').read_text())
 
+
+
+class ServeDiagnosticTests(unittest.TestCase):
+    def test_guard_failure_is_allowlisted_not_raw(self):
+        self.assertEqual(demo.error_code(Failure('DEMO_TUNNEL_EXITED')),'DEMO_TUNNEL_EXITED')
+        self.assertEqual(demo.error_code(Failure('SECRET_CANARY_RAW_URL')),'UNCLASSIFIED_SERVE_ERROR')
+        self.assertEqual(demo.error_code(Failure(['SECRET_CANARY'])),'UNCLASSIFIED_SERVE_ERROR')
+    def test_os_and_network_error_messages_not_emitted(self):
+        import urllib.error
+        for error in (PermissionError(13,'SECRET_CANARY'),urllib.error.URLError('https://secret.invalid/token'),RuntimeError('SECRET_CANARY')):
+            trace=demo.ServeTrace();trace.at('OTP_PROBE');trace.capture(error)
+            raw=json.dumps(trace.failure)
+            self.assertNotIn('SECRET_CANARY',raw);self.assertNotIn('https://',raw);self.assertNotIn('secret.invalid',raw)
+            self.assertEqual(trace.failure['operationCode'],'OTP_PROBE')
+    def test_natural_exit_recorded_before_shutdown(self):
+        trace=demo.ServeTrace();trace.child=Mock();trace.child.poll.return_value=7;trace.at('TUNNEL_STARTUP_WAIT')
+        trace.capture(Failure('DEMO_TUNNEL_EXITED'))
+        trace.child.poll.return_value=-15;trace.at('PUBLIC_ACCESS_SHUTDOWN');trace.capture(RuntimeError('secret'))
+        self.assertEqual(trace.failure['tunnelExitCodeAtFailure'],7)
+        self.assertEqual(trace.failure['operationCode'],'TUNNEL_STARTUP_WAIT')
+    def test_otp_probe_records_only_status_and_boolean(self):
+        trace=demo.ServeTrace();trace.probe_status=503;trace.challenge_match=False;trace.at('OTP_CHALLENGE_VALIDATION')
+        trace.capture(Failure('OTP_ACCESS_GATE_UNVERIFIED'))
+        self.assertEqual(trace.failure['otpProbeHttpStatus'],503);self.assertFalse(trace.failure['otpChallengeMatched'])
+        self.assertFalse(trace.failure['accessOpened'])
+    def test_bounded_private_output_classification(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'private-tunnel.log'
+            path.write_bytes(b'flag provided but not defined: SECRET_CANARY https://secret.invalid/token\n'+b'x'*262144)
+            trace=demo.ServeTrace();trace.log=path;trace.capture(Failure('DEMO_TUNNEL_EXITED'))
+            self.assertEqual(trace.failure['tunnelOutputCategory'],'CLI_ARGUMENT_REJECTED')
+            self.assertNotIn('SECRET_CANARY',json.dumps(trace.failure))
+    def test_unknown_provider_output_remains_unknown(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'private-tunnel.log';path.write_text('SECRET_CANARY unknown condition')
+            trace=demo.ServeTrace();trace.log=path;trace.capture(RuntimeError('SECRET_CANARY'))
+            self.assertEqual(trace.failure['tunnelOutputCategory'],'UNCLASSIFIED_OR_NO_TUNNEL_OUTPUT')
+            self.assertEqual(trace.failure['failureCode'],'UNCLASSIFIED_SERVE_ERROR')
+    def test_unknown_exception_type_is_not_a_dynamic_output_channel(self):
+        error=type('SECRET_CANARY_EXCEPTION',(Exception,),{})('SECRET_CANARY')
+        trace=demo.ServeTrace();trace.capture(error)
+        self.assertEqual(trace.failure['exceptionType'],'UNCLASSIFIED_EXCEPTION')
+    def test_artifact_and_stdout_both_sanitized(self):
+        import contextlib,io
+        with tempfile.TemporaryDirectory() as d:
+            trace=demo.ServeTrace();trace.capture(RuntimeError('SECRET_CANARY'))
+            output=io.StringIO()
+            with contextlib.redirect_stdout(output):trace.emit(Path(d))
+            path=Path(d)/'sanitized-demo-serve.json';self.assertEqual(path.stat().st_mode&0o777,0o600)
+            self.assertNotIn('SECRET_CANARY',path.read_text()+output.getvalue())
+            value=json.loads(output.getvalue().split('=',1)[1]);self.assertEqual(value,json.loads(path.read_text()))
+    def test_artifact_path_added_without_private_logs(self):
+        source=(ROOT/'.github/workflows/on-demand-demo.yml').read_text()
+        paths=source.split('path: |',1)[1]
+        self.assertIn('sanitized-demo-serve.json',paths);self.assertNotIn('private-tunnel.log',paths)
+    def test_failed_spawn_is_captured_without_starting_any_process(self):
+        from types import SimpleNamespace
+        import contextlib,io
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d);root=folder/'source';(root/'deploy').mkdir(parents=True)
+            (folder/'secrets').mkdir()
+            for n in ('admin_password','merchant_password'):(folder/'secrets'/n).write_text('SECRET_CANARY_PASSWORD')
+            (folder/'sanitized-browser.json').write_text(json.dumps(LifecycleTests().report()))
+            (folder/'sanitized-browser-final.json').write_text('{"success":true}')
+            import time
+            (folder/'demo-created.json').write_text(json.dumps({'created':time.time()}))
+            (folder/'cloudflared').write_bytes(b'OFFLINE_NON_EXECUTABLE_FIXTURE')
+            (root/'deploy/cloudflared-demo.json').write_text(json.dumps({'sha256':hashlib.sha256((folder/'cloudflared').read_bytes()).hexdigest()}))
+            output=io.StringIO()
+            environment={'DEMO_ALLOWED_EMAIL':'operator@example.test','DEMO_MINUTES':'5','GITHUB_STEP_SUMMARY':str(folder/'summary')}
+            with patch.object(demo,'ROOT',root),patch.dict(demo.os.environ,environment),patch.object(demo,'Edge') as edge_mock,patch.object(demo.threading,'Thread'),patch.object(demo.signal,'signal'),patch.object(demo.subprocess,'run',return_value=SimpleNamespace(returncode=0,stdout=b'--allowed-mail')),patch.object(demo.subprocess,'Popen',side_effect=PermissionError(13,'SECRET_CANARY')),contextlib.redirect_stdout(output):
+                with self.assertRaises(PermissionError):demo.serve(SimpleNamespace(folder=folder))
+                self.assertFalse(edge_mock.return_value.active)
+            evidence=json.loads((folder/'sanitized-demo-serve.json').read_text())
+            self.assertEqual(evidence['operationCode'],'TUNNEL_SPAWN')
+            self.assertEqual(evidence['exceptionType'],'PermissionError');self.assertEqual(evidence['osErrorNumber'],13)
+            self.assertEqual(evidence['tunnelProcessState'],'NOT_STARTED');self.assertFalse(evidence['accessOpened'])
+            self.assertTrue(json.loads((folder/'public-access-closed.json').read_text())['success'])
+            self.assertNotIn('SECRET_CANARY',output.getvalue()+json.dumps(evidence))
+
 if __name__=='__main__':unittest.main()

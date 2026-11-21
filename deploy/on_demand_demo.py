@@ -107,33 +107,131 @@ def closed(folder):
 def allowed_email(email):
     return len(email)<=254 and bool(re.fullmatch(r'[A-Za-z0-9.!#$%&\x27+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}',email)) and ',' not in email
 
+# Fixed vocabulary only. Exception messages and tunnel log excerpts must never
+# cross into stdout/artifacts, even if a failed provider request contains secrets.
+SERVE_OPERATIONS=frozenset(('BROWSER_ACCEPTANCE','FINAL_COUNTS','RECIPIENT_CONFIGURATION',
+    'SESSION_BUDGET','BINARY_INTEGRITY','CLI_CAPABILITY','CREDENTIAL_READ','EDGE_STARTUP','SIGNAL_SETUP',
+    'TUNNEL_LOG_SETUP','TUNNEL_SPAWN','TUNNEL_STARTUP_WAIT','PUBLIC_HOST_VALIDATION',
+    'OTP_PROBE','OTP_CHALLENGE_VALIDATION','SESSION_OPEN','SESSION_ACTIVE','PUBLIC_ACCESS_SHUTDOWN'))
+SERVE_FAILURES=frozenset(('DEMO_BROWSER_GATE_FAILED','DEMO_COMPLETE_CHROMIUM_REQUIRED',
+    'DEMO_FINAL_COUNTS_REQUIRED','EXACT_DEMO_EMAIL_REQUIRED','DEMO_DURATION_INVALID',
+    'DEMO_ADMISSION_DEADLINE_EXCEEDED','CLOUDFLARED_CHECKSUM_MISMATCH',
+    'QUICK_TUNNEL_EMAIL_AUTH_UNSUPPORTED','DEMO_TUNNEL_EXITED','DEMO_TUNNEL_LOG_LIMIT',
+    'PROTECTED_TUNNEL_NOT_ESTABLISHED','OTP_ACCESS_GATE_UNVERIFIED','DEMO_EXPIRED',
+    'DEMO_PUBLIC_PROCESS_STILL_RUNNING'))
+
+def error_code(error):
+    from container_e2e import Failure
+    if isinstance(error,Failure) and len(error.args)==1 and type(error.args[0]) is str and error.args[0] in SERVE_FAILURES:
+        return error.args[0]
+    if isinstance(error,subprocess.TimeoutExpired):return 'SUBPROCESS_TIMEOUT'
+    if isinstance(error,urllib.error.HTTPError):return 'OTP_PROBE_HTTP_ERROR'
+    if isinstance(error,urllib.error.URLError):return 'OTP_PROBE_NETWORK_ERROR'
+    if isinstance(error,TimeoutError):return 'OPERATION_TIMEOUT'
+    if isinstance(error,OSError):return 'LOCAL_OS_OPERATION_FAILED'
+    if isinstance(error,ValueError):return 'INVALID_LOCAL_STATE'
+    return 'UNCLASSIFIED_SERVE_ERROR'
+
+class ServeTrace:
+    def __init__(self):
+        self.operation='BROWSER_ACCEPTANCE';self.child=None;self.log=None
+        self.probe_status=None;self.challenge_match=None;self.access_opened=False
+        self.started=time.monotonic();self.failure=None
+    def at(self,code):
+        require(code in SERVE_OPERATIONS,'UNKNOWN_DEMO_OPERATION')
+        self.operation=code
+    def capture(self,error):
+        if self.failure is not None:return
+        code=self.child.poll() if self.child is not None else None
+        state='NOT_STARTED' if self.child is None else 'RUNNING' if code is None else 'EXITED'
+        if type(code) is not int or not -255<=code<=255:code=None
+        raw=b''
+        if self.log is not None:
+            try:
+                with self.log.open('rb') as stream:raw=stream.read(262144)
+            except OSError:pass
+        lower=raw.lower();category='UNCLASSIFIED_OR_NO_TUNNEL_OUTPUT'
+        for marker,fixed in (
+            (b'flag provided but not defined','CLI_ARGUMENT_REJECTED'),
+            (b'--allowed-mail is only supported for quick tunnels','CLI_ARGUMENT_REJECTED'),
+            (b'validate quick tunnel recipient policy','RECIPIENT_POLICY_REJECTED'),
+            (b'initialize quick tunnel assertion validator','AUTH_VALIDATOR_INITIALIZATION_FAILED'),
+            (b'initialize quick tunnel authentication handler','AUTH_HANDLER_INITIALIZATION_FAILED'),
+            (b'initialize quick tunnel session manager','AUTH_SESSION_INITIALIZATION_FAILED'),
+            (b'initialize quick tunnel state manager','AUTH_STATE_INITIALIZATION_FAILED'),
+            (b'failed to request quick tunnel','QUICK_TUNNEL_REQUEST_FAILED'),
+            (b'error parsing yaml in config file','CONFIGURATION_PARSE_FAILED')):
+            if marker in lower:category=fixed;break
+        types={'Failure','Denied','TimeoutExpired','URLError','HTTPError','TimeoutError',
+            'FileNotFoundError','PermissionError','ConnectionRefusedError','OSError',
+            'ValueError','JSONDecodeError','RuntimeError'}
+        kind=type(error).__name__
+        kind=kind if kind in types else 'UNCLASSIFIED_EXCEPTION'
+        number=getattr(error,'errno',None)
+        number=number if type(number) is int and -4096<=number<=4096 else None
+        self.failure={'success':False,'operationCode':self.operation,'failureCode':error_code(error),
+            'exceptionType':kind,'osErrorNumber':number,
+            'elapsedMs':min(3600000,max(0,int((time.monotonic()-self.started)*1000))),
+            'tunnelProcessState':state,'tunnelExitCodeAtFailure':code,
+            'protectedStartupObserved':b'Your protected quick Tunnel has been created!' in raw,
+            'hostnameObserved':bool(re.search(rb'https://[a-z0-9-]+[.]trycloudflare[.]com',raw)),
+            'tunnelOutputCategory':category,'otpProbeHttpStatus':self.probe_status,
+            'otpChallengeMatched':self.challenge_match,'accessOpened':self.access_opened,
+            'rawLogsRetained':False}
+    def emit(self,folder):
+        if self.failure is None:return
+        private_json(folder/'sanitized-demo-serve.json',self.failure)
+        print('DEMO_SERVE_FAILURE_DIAGNOSTIC='+json.dumps(self.failure,sort_keys=True),flush=True)
+
 def serve(suite):
+    trace=ServeTrace()
+    try:return _serve(suite,trace)
+    except Exception as error:
+        trace.capture(error)
+        try:trace.emit(suite.folder)
+        except Exception:print('DEMO_SERVE_DIAGNOSTIC_UNAVAILABLE',flush=True)
+        raise
+
+
+def _serve(suite,trace):
     folder=suite.folder
     browser_gate(json.loads((folder/'sanitized-browser.json').read_text()))
+    trace.at('FINAL_COUNTS')
     require(json.loads((folder/'sanitized-browser-final.json').read_text()).get('success') is True,'DEMO_FINAL_COUNTS_REQUIRED')
+    trace.at('RECIPIENT_CONFIGURATION')
     email=os.environ.pop('DEMO_ALLOWED_EMAIL','')
     require(allowed_email(email),'EXACT_DEMO_EMAIL_REQUIRED')
+    trace.at('SESSION_BUDGET')
     minutes=os.environ.get('DEMO_MINUTES','10');require(minutes in ('5','10','15'),'DEMO_DURATION_INVALID')
     started=json.loads((folder/'demo-created.json').read_text())['created']
     remaining=started+45*60-time.time()
     require(remaining>=120,'DEMO_ADMISSION_DEADLINE_EXCEEDED')
     deadline=time.monotonic()+min(int(minutes)*60,remaining)
+    trace.at('BINARY_INTEGRITY')
     spec=json.loads((ROOT/'deploy/cloudflared-demo.json').read_text());binary=folder/'cloudflared'
     require(hashlib.sha256(binary.read_bytes()).hexdigest()==spec['sha256'],'CLOUDFLARED_CHECKSUM_MISMATCH')
+    trace.at('CLI_CAPABILITY')
     result=subprocess.run([str(binary),'tunnel','--help'],capture_output=True,timeout=10)
     require(result.returncode==0 and b'--allowed-mail' in result.stdout,'QUICK_TUNNEL_EMAIL_AUTH_UNSUPPORTED')
+    trace.at('CREDENTIAL_READ')
     credentials=[('Admin','ci-admin@e2e.example.test',(folder/'secrets/admin_password').read_text()),('Merchant','browser-a@e2e.example.test',(folder/'secrets/merchant_password').read_text())]
+    trace.at('EDGE_STARTUP')
     server=Edge(ROOT,credentials,deadline);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
     child=None;stopped=threading.Event()
     def stop(*args):stopped.set()
+    trace.at('SIGNAL_SETUP')
     previous={s:signal.signal(s,stop) for s in (signal.SIGTERM,signal.SIGINT)}
-    log=folder/'private-tunnel.log'
+    log=folder/'private-tunnel.log';trace.log=log
+    trace.at('TUNNEL_LOG_SETUP')
     try:
         with os.fdopen(os.open(log,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600),'wb') as output:
             # No config file/account token; exact recipient, never a domain/wildcard.
             private_json(folder/'public-access-starting.json',{'attempted':True})
+            trace.at('TUNNEL_SPAWN')
             child=subprocess.Popen([str(binary),'--no-autoupdate','tunnel','--config','/dev/null','--url','http://127.0.0.1:15501','--allowed-mail',email],stdout=output,stderr=output)
+            trace.child=child
             private_json(folder/'demo-processes.json',{'pids':[child.pid]})
+            trace.at('TUNNEL_STARTUP_WAIT')
             until=time.monotonic()+90;url=None
             while time.monotonic()<until and not stopped.is_set():
                 require(child.poll() is None,'DEMO_TUNNEL_EXITED')
@@ -144,16 +242,22 @@ def serve(suite):
                     url=matches[0];break
                 stopped.wait(.5)
             require(url is not None and not stopped.is_set(),'PROTECTED_TUNNEL_NOT_ESTABLISHED')
+            trace.at('PUBLIC_HOST_VALIDATION')
             server.host=public_host(url)
             # Server remains locked until the unauthenticated internet probe
             # proves the Access challenge is before the origin.
+            trace.at('OTP_PROBE')
             opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
             try:
                 with opener.open(url+'/_demo/start',timeout=20) as response:status=response.status;location=response.headers.get('Location','')
             except urllib.error.HTTPError as response:status=response.code;location=response.headers.get('Location','');response.close()
+            trace.probe_status=status if type(status) is int and 100<=status<=599 else None
+            trace.challenge_match=challenge(location,status)
+            trace.at('OTP_CHALLENGE_VALIDATION')
             require(challenge(location,status),'OTP_ACCESS_GATE_UNVERIFIED')
             require(time.monotonic()<deadline and not stopped.is_set(),'DEMO_EXPIRED')
-            server.active=True
+            trace.at('SESSION_OPEN')
+            server.active=True;trace.access_opened=True
             with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as summary:
                 summary.write('## Temporary authenticated acceptance demo\n\nEmail OTP is required. Synthetic credentials are available only behind that gate.\n\n'+url+'/_demo/start\n\n'+url+'/merchant/login\n\n'+url+'/admin/login\n\n'+url+'/docs/\n\nMaximum access: '+minutes+' minutes; ends earlier on cancellation or failure.\n')
             # Step summaries may appear only after the blocking step ends.
@@ -161,10 +265,15 @@ def serve(suite):
             # credential, auth state, payment link or checkout token is included.
             print('DEMO_AUTHENTICATED_ENTRY='+url+'/_demo/start',flush=True)
             print('DEMO_OTP_GATE_VERIFIED_ACCESS_OPEN',flush=True)
+            trace.at('SESSION_ACTIVE')
             while time.monotonic()<deadline and not stopped.wait(.5):
                 require(child.poll() is None,'DEMO_TUNNEL_EXITED')
                 require(log.stat().st_size<=262144,'DEMO_TUNNEL_LOG_LIMIT')
+    except Exception as error:
+        trace.capture(error) # Capture natural exit status BEFORE owned termination.
+        raise
     finally:
+        trace.at('PUBLIC_ACCESS_SHUTDOWN')
         server.active=False
         terminate(child) # Public access closes before database/container teardown.
         server.shutdown();server.server_close();thread.join(timeout=3)
