@@ -135,6 +135,25 @@ class BrowserPolicyTests(unittest.TestCase):
             if 'upload-artifact@' in step.get('uses',''):
                 self.assertNotIn('browser-launch-',step['with']['path'])
 
+    def test_private_output_security_is_descriptor_scoped(self):
+        source=(HERE/'fixtures.js').read_text()
+        helper=source[source.index('export function privateDirectory('):source.index('export function credential(')]
+        for token in ['fs.realpathSync(run)','path.relative(run, folder)','isSymbolicLink()','process.getuid()','O_DIRECTORY','O_NOFOLLOW','fs.fstatSync','fs.fchmodSync(fd, 0o700)','opened.ino === before.ino','after.ino === secured.ino']:
+            self.assertIn(token,helper)
+        self.assertNotIn('recursive: true',helper)
+        self.assertNotIn('fs.chmodSync',helper)
+        self.assertNotIn('fs.rm',helper)
+
+    def test_all_fixed_fixture_guards_are_classifiable(self):
+        fixture=(HERE/'fixtures.js').read_text()
+        reporter=(HERE/'sanitized-reporter.js').read_text()
+        allowlist=reporter[reporter.index('const SAFE_ERRORS'):reporter.index('export function classifyFailure')]
+        codes=set(re.findall(r",\s*'([A-Z][A-Z0-9_]+)'\s*\)",fixture))
+        self.assertIn('PRIVATE_OUTPUT_REQUIRED',codes)
+        for code in codes:self.assertIn("'"+code+"'",allowlist)
+        self.assertIn('BROWSER_FAILURE_DIAGNOSTIC=',reporter)
+        self.assertIn("SAFE_ERRORS.has(firstLine)",reporter)
+
     def test_js_and_python_syntax(self):
         for source in list(HERE.glob('*.js'))+list(HERE.glob('*.mjs')):subprocess.run(['node','--check',str(source)],check=True,capture_output=True)
         ast.parse((ROOT/'deploy/browser_bootstrap.py').read_text())
@@ -142,7 +161,7 @@ class BrowserPolicyTests(unittest.TestCase):
     def test_real_offline_helpers_and_reporter(self):
         result=subprocess.run(['node',str(HERE/'offline.test.mjs')],capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('# pass 16',result.stdout)
+        self.assertIn('# pass 26',result.stdout)
         self.assertNotIn('NATIVE_CHROMIUM_E2E_PASS',result.stdout)
 
 

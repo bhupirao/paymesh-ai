@@ -15,13 +15,38 @@ export function guard(env = process.env) {
   requireSafe(stat.isDirectory() && !stat.isSymbolicLink() && !(stat.mode & 0o077) && stat.uid === process.getuid(), 'PRIVATE_FIXTURE_DIRECTORY_REQUIRED');
   return folder;
 }
-export function privateDirectory(name) {
-  requireSafe(['browser-private-output'].includes(name), 'FIXED_OUTPUT_DIRECTORY_REQUIRED');
-  const folder = path.join(guard(), name);
-  fs.mkdirSync(folder, { mode: 0o700, recursive: true });
-  const stat = fs.lstatSync(folder);
-  requireSafe(stat.isDirectory() && !stat.isSymbolicLink() && !(stat.mode & 0o077), 'PRIVATE_OUTPUT_REQUIRED');
-  return folder;
+export function privateDirectory(name, env = process.env) {
+  requireSafe(name === 'browser-private-output', 'FIXED_OUTPUT_DIRECTORY_REQUIRED');
+  const run = guard(env); // Canonical temp parent; private, owned, non-symlink run.
+  const folder = path.resolve(run, name);
+  requireSafe(fs.realpathSync(run) === run && folder !== run && path.dirname(folder) === run
+    && path.relative(run, folder) === name, 'PRIVATE_OUTPUT_REQUIRED');
+  let fd;
+  try {
+    // No recursive creation/chmod: the private run must already exist.
+    try { fs.mkdirSync(folder, { mode: 0o700 }); }
+    catch (error) { if (error.code !== 'EEXIST') throw error; }
+    const before = fs.lstatSync(folder);
+    requireSafe(before.isDirectory() && !before.isSymbolicLink() && before.uid === process.getuid()
+      && fs.realpathSync(folder) === folder, 'PRIVATE_OUTPUT_REQUIRED');
+    fd = fs.openSync(folder, fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW);
+    const opened = fs.fstatSync(fd);
+    const current = fs.lstatSync(folder);
+    requireSafe(opened.isDirectory() && opened.uid === process.getuid()
+      && opened.dev === before.dev && opened.ino === before.ino
+      && current.isDirectory() && !current.isSymbolicLink()
+      && current.dev === opened.dev && current.ino === opened.ino, 'PRIVATE_OUTPUT_REQUIRED');
+    // Playwright can recreate this exact leaf with its default umask. Secure the
+    // validated inode through its no-follow descriptor, never a substituted path.
+    fs.fchmodSync(fd, 0o700);
+    const secured = fs.fstatSync(fd), after = fs.lstatSync(folder);
+    requireSafe(secured.isDirectory() && secured.uid === process.getuid() && (secured.mode & 0o7777) === 0o700
+      && after.isDirectory() && !after.isSymbolicLink() && after.uid === process.getuid() && (after.mode & 0o7777) === 0o700
+      && after.dev === secured.dev && after.ino === secured.ino
+      && fs.realpathSync(folder) === folder, 'PRIVATE_OUTPUT_REQUIRED');
+    return folder;
+  } catch { throw new Error('PRIVATE_OUTPUT_REQUIRED'); }
+  finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 export function credential(name) {
   requireSafe(['admin_password', 'merchant_password'].includes(name), 'FIXED_CREDENTIAL_REQUIRED');

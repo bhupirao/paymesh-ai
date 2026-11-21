@@ -4,11 +4,12 @@ import path from 'node:path';
 import { guard } from './fixtures.js';
 const CODES = new Set(['COMPLETE_NATIVE_BROWSER_JOURNEY', 'MOBILE_KEYBOARD_AND_VALIDATION', 'DESKTOP_KEYBOARD_AND_VALIDATION', 'MERCHANT_REGISTRATION_VALIDATION', 'ADMIN_LOGIN_AND_NATIVE_APPROVAL', 'DASHBOARD_SESSION_AND_ROLE_PROTECTION', 'PAYMENT_CREATION_PROCESSING_AND_LIST', 'MERCHANT_OWNERSHIP_ISOLATION', 'NATIVE_INVESTIGATION_REAL_QWEN', 'PARTIAL_AND_FULL_REFUND_UI', 'PAYMENT_LINK_AND_CUSTOMER_CHECKOUT', 'MERCHANT_ADMIN_CHAT_AND_SAVED_HISTORY', 'CROSS_TAB_LOGOUT_AND_PROTECTED_ROUTE']);
 // Inspect bounded error text only to select constants; never retain text/stack.
-const SAFE_ERRORS = new Set(['HOSTED_RUNNER_REQUIRED','MANUAL_MAIN_REQUIRED','FIXED_LOCAL_STACK_REQUIRED','RUN_ID_REQUIRED','FIXTURE_SCOPE_REQUIRED','PRIVATE_FIXTURE_DIRECTORY_REQUIRED','PRIVATE_SECRET_DIRECTORY_REQUIRED','FIXTURE_CREDENTIAL_INVALID','BROWSER_HTTP_STATUS_MISMATCH','BROWSER_RESPONSE_TOO_LARGE','BROWSER_RESPONSE_INVALID','REAL_MODEL_REQUIRED','HORIZONTAL_OVERFLOW','EXACT_AMOUNT_REQUIRED','OWNERSHIP_DENIAL_REQUIRED','RESTORE_INVOKED_MODEL','AUTOMATIC_AI_REQUEST','SHIFT_ENTER_SENT_QUESTION','INVESTIGATION_SCOPE','REGISTRATION_STATUS','UNIQUE_PENDING_MERCHANT_REQUIRED','CREATED_PAYMENT_CONTRACT','PAYMENT_PROCESSING_STATUS','REFUND_RECORD','FIXED_CHECKOUT_URL','PAID_CHECKOUT_REQUIRED','VISIBLE_ANSWER_REQUIRED','SAVED_TURN_REQUIRED','OWNED_HISTORY_SEARCH','OTHER_MERCHANT_PRIVATE_HISTORY','ADMIN_MERCHANT_HISTORY_ISOLATION','CHROMIUM_WITNESS_REQUIRED']);
+const SAFE_ERRORS = new Set(['HOSTED_RUNNER_REQUIRED','MANUAL_MAIN_REQUIRED','FIXED_LOCAL_STACK_REQUIRED','RUN_ID_REQUIRED','FIXTURE_SCOPE_REQUIRED','PRIVATE_FIXTURE_DIRECTORY_REQUIRED','PRIVATE_SECRET_DIRECTORY_REQUIRED','FIXTURE_CREDENTIAL_INVALID','BROWSER_HTTP_STATUS_MISMATCH','BROWSER_RESPONSE_TOO_LARGE','BROWSER_RESPONSE_INVALID','REAL_MODEL_REQUIRED','HORIZONTAL_OVERFLOW','EXACT_AMOUNT_REQUIRED','OWNERSHIP_DENIAL_REQUIRED','RESTORE_INVOKED_MODEL','AUTOMATIC_AI_REQUEST','SHIFT_ENTER_SENT_QUESTION','INVESTIGATION_SCOPE','REGISTRATION_STATUS','UNIQUE_PENDING_MERCHANT_REQUIRED','CREATED_PAYMENT_CONTRACT','PAYMENT_PROCESSING_STATUS','REFUND_RECORD','FIXED_CHECKOUT_URL','PAID_CHECKOUT_REQUIRED','VISIBLE_ANSWER_REQUIRED','SAVED_TURN_REQUIRED','OWNED_HISTORY_SEARCH','OTHER_MERCHANT_PRIVATE_HISTORY','ADMIN_MERCHANT_HISTORY_ISOLATION','CHROMIUM_WITNESS_REQUIRED','FIXED_OUTPUT_DIRECTORY_REQUIRED','PRIVATE_OUTPUT_REQUIRED','FIXED_CREDENTIAL_REQUIRED']);
 export function classifyFailure(error, status) {
-  const message = typeof error?.message === 'string' ? error.message.slice(0,8192) : '';
+  const message = (typeof error?.message === 'string' ? error.message.slice(0,8192) : '').replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '');
+  const firstLine = message.split(/\r?\n/,1)[0].trim().replace(/^Error:[ \t]*/, '');
   let category='UNKNOWN', errorCode='UNCLASSIFIED_TEST_FAILURE', timeoutCategory='NONE', assertionCategory='NONE';
-  const known = [...SAFE_ERRORS].find(code => message === code || message === 'Error: '+code);
+  const known = SAFE_ERRORS.has(firstLine) ? firstLine : null;
   if (known) { category='SAFE_TEST_GUARD'; errorCode=known; }
   else if (/Executable (?:doesn't|does not) exist/.test(message)) { category='BROWSER_LAUNCH'; errorCode='BROWSER_EXECUTABLE_MISSING'; }
   else if (/error while loading shared libraries|Host system is missing dependencies/.test(message)) { category='BROWSER_LAUNCH'; errorCode='BROWSER_SYSTEM_DEPENDENCY_MISSING'; }
@@ -75,6 +76,19 @@ export default class SanitizedReporter {
     const output = JSON.stringify(report, null, 2);
     if (Buffer.byteLength(output) > 32768) throw new Error('BROWSER_REPORT_TOO_LARGE');
     fs.writeFileSync(path.join(folder, 'sanitized-browser.json'), output + '\n', { mode: 0o600, flag: 'wx' });
+    // Emit ONLY already-allowlisted scalar fields, never Error/TestResult.
+    for (const t of this.tests.filter(t => ['failed','timedOut','interrupted'].includes(t.status))) {
+      const d = t.diagnostic || classifyFailure(undefined, t.status);
+      process.stdout.write('BROWSER_FAILURE_DIAGNOSTIC=' + JSON.stringify({testCode:t.code,stageCode:t.failedStage,
+        category:d.category,errorCode:d.errorCode,elapsedMs:t.elapsedMs,chromiumLaunchStatus:t.chromiumLaunchStatus,
+        assertionCategory:d.assertionCategory,timeoutCategory:d.timeoutCategory}) + '\n');
+    }
+    if (this.infrastructureError) {
+      const d = this.infrastructureFailure || classifyFailure(undefined, 'failed');
+      process.stdout.write('BROWSER_FAILURE_DIAGNOSTIC=' + JSON.stringify({testCode:'INFRASTRUCTURE',stageCode:'RUNNER_OR_CONFIGURATION',
+        category:d.category,errorCode:d.errorCode,elapsedMs:0,chromiumLaunchStatus:'NOT_OBSERVED',
+        assertionCategory:d.assertionCategory,timeoutCategory:d.timeoutCategory}) + '\n');
+    }
     process.stdout.write(report.success ? 'NATIVE_CHROMIUM_E2E_PASS\n' : 'NATIVE_CHROMIUM_E2E_FAILED_NO_RAW_OUTPUT\n');
     return { status: report.success ? 'passed' : 'failed' };
   }

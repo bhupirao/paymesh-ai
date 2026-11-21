@@ -116,3 +116,69 @@ test('mismatched or world-readable witness does not prove Chromium launch',async
     assert.equal(JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json'))).tests[0].chromiumLaunchStatus,'NOT_OBSERVED');
   }
 });
+test('private output is created owned and mode 0700',()=>{
+  const c=context(),output=f.privateDirectory('browser-private-output',c.env);
+  assert.equal(path.dirname(output),c.dir);assert.equal(fs.statSync(output).mode&0o7777,0o700);assert.equal(fs.statSync(output).uid,process.getuid());
+});
+test('Playwright-style removed and recreated output is securely repaired',()=>{
+  const c=context(),output=f.privateDirectory('browser-private-output',c.env);
+  fs.rmdirSync(output);fs.mkdirSync(path.join(output,'worker-artifacts'),{recursive:true,mode:0o755});fs.chmodSync(output,0o755);
+  assert.equal(fs.statSync(output).mode&0o777,0o755);
+  assert.equal(f.privateDirectory('browser-private-output',c.env),output);
+  assert.equal(fs.statSync(output).mode&0o7777,0o700);
+  assert.equal(fs.statSync(path.join(output,'worker-artifacts')).mode&0o777,0o755);
+  assert.equal(f.privateDirectory('browser-private-output',c.env),output);
+});
+test('output repair rejects symlink and leaves external directory untouched',()=>{
+  const c=context(),external=fs.mkdtempSync(path.join(os.tmpdir(),'paymesh-offline-external-'));
+  fs.chmodSync(external,0o755);fs.symlinkSync(external,path.join(c.dir,'browser-private-output'),'dir');
+  assert.throws(()=>f.privateDirectory('browser-private-output',c.env),/PRIVATE_OUTPUT_REQUIRED/);
+  assert.equal(fs.statSync(external).mode&0o777,0o755);
+});
+test('output repair rejects unexpected files without changing mode',()=>{
+  const c=context(),output=path.join(c.dir,'browser-private-output');fs.writeFileSync(output,'SYNTHETIC_PRIVATE_CONTENT',{mode:0o644});
+  assert.throws(()=>f.privateDirectory('browser-private-output',c.env),/PRIVATE_OUTPUT_REQUIRED/);
+  assert.equal(fs.statSync(output).mode&0o777,0o644);
+});
+test('external or traversal output names cannot be chmod targets',()=>{
+  const c=context(),original=fs.fchmodSync;let count=0;fs.fchmodSync=()=>{count++;};
+  try{for(const name of ['../outside','/tmp/outside','browser-private-output/../outside','browser-private-output/child','.',c.dir])assert.throws(()=>f.privateDirectory(name,c.env),/FIXED_OUTPUT_DIRECTORY_REQUIRED/);assert.equal(count,0);}finally{fs.fchmodSync=original;}
+});
+test('foreign inode ownership fails before any chmod',()=>{
+  const c=context(),output=path.join(c.dir,'browser-private-output');fs.mkdirSync(output,{mode:0o755});
+  const originalStat=fs.fstatSync,originalChmod=fs.fchmodSync;let count=0;
+  fs.fstatSync=fd=>{const stat=originalStat(fd);Object.defineProperty(stat,'uid',{value:process.getuid()+1});return stat;};
+  fs.fchmodSync=()=>{count++;};
+  try{assert.throws(()=>f.privateDirectory('browser-private-output',c.env),/PRIVATE_OUTPUT_REQUIRED/);assert.equal(count,0);assert.equal(fs.statSync(output).mode&0o777,0o755);}finally{fs.fstatSync=originalStat;fs.fchmodSync=originalChmod;}
+});
+test('post-correction permissions are verified and no path chmod is used',()=>{
+  const c=context(),output=path.join(c.dir,'browser-private-output');fs.mkdirSync(output,{mode:0o755});
+  const original=fs.fchmodSync;let calls=0;fs.fchmodSync=()=>{calls++;};
+  try{assert.throws(()=>f.privateDirectory('browser-private-output',c.env),/PRIVATE_OUTPUT_REQUIRED/);assert.equal(calls,1);assert.equal(fs.statSync(output).mode&0o777,0o755);}finally{fs.fchmodSync=original;}
+});
+test('decorated guard errors classify only approved complete first-line codes',async()=>{
+  const {classify}=await reporter();
+  for(const message of ['PRIVATE_OUTPUT_REQUIRED','Error: PRIVATE_OUTPUT_REQUIRED','\x1b[31mError: PRIVATE_OUTPUT_REQUIRED\x1b[0m\nPRIVATE_CANARY','  Error:\tPRIVATE_OUTPUT_REQUIRED  \r\nPRIVATE_CANARY']){
+    const d=classify({message},'failed');assert.equal(d.errorCode,'PRIVATE_OUTPUT_REQUIRED');assert.equal(d.category,'SAFE_TEST_GUARD');assert.equal(JSON.stringify(d).includes('PRIVATE_CANARY'),false);
+  }
+  for(const message of ['PRIVATE_OUTPUT_REQUIRED_PRIVATE_CANARY','Error: PRIVATE_OUTPUT_REQUIRED PRIVATE_CANARY','PRIVATE_CANARY\nPRIVATE_OUTPUT_REQUIRED','Error: PRIVATE_CANARY'])assert.equal(classify({message},'failed').category,'UNKNOWN');
+});
+test('stdout diagnostics contain only safe fields and retain JSON evidence',async()=>{
+  const {instance:r,dir}=await reporter();const t={id:'not-exported',title:'DESKTOP_KEYBOARD_AND_VALIDATION'};
+  r.onTestBegin(t);r.onTestEnd(t,{status:'failed',duration:2,error:{message:'\x1b[31mError: PRIVATE_OUTPUT_REQUIRED\x1b[0m\nPRIVATE_CANARY_TOKEN_URL_STACK'}});
+  let output='';const original=process.stdout.write;process.stdout.write=chunk=>{output+=chunk;return true;};
+  try{assert.equal(r.onEnd({status:'failed'}).status,'failed');}finally{process.stdout.write=original;}
+  assert.equal(output.includes('PRIVATE_CANARY'),false);assert.equal(output.includes('not-exported'),false);
+  const lines=output.trim().split('\n');assert.equal(lines.length,2);
+  assert.ok(lines[0].startsWith('BROWSER_FAILURE_DIAGNOSTIC='));const value=JSON.parse(lines[0].split('=',2)[1]);
+  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory'].sort());
+  assert.equal(value.errorCode,'PRIVATE_OUTPUT_REQUIRED');assert.equal(value.chromiumLaunchStatus,'NOT_OBSERVED');assert.equal(value.stageCode,'HOOK_OR_FIXTURE_SETUP');
+  const saved=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8');assert.equal(saved.includes('PRIVATE_CANARY'),false);assert.equal(JSON.parse(saved).tests[0].diagnostic.errorCode,'PRIVATE_OUTPUT_REQUIRED');
+});
+test('unknown infrastructure diagnostics remain fixed and do not expose errors',async()=>{
+  const {instance:r}=await reporter();r.onError({message:'PRIVATE_CANARY_UNKNOWN',stack:'PRIVATE_CANARY_STACK'});
+  let output='';const original=process.stdout.write;process.stdout.write=chunk=>{output+=chunk;return true;};
+  try{r.onEnd({status:'failed'});}finally{process.stdout.write=original;}
+  assert.equal(output.includes('PRIVATE_CANARY'),false);
+  const value=JSON.parse(output.split('\n')[0].split('=',2)[1]);assert.equal(value.testCode,'INFRASTRUCTURE');assert.equal(value.errorCode,'UNCLASSIFIED_TEST_FAILURE');assert.equal(value.category,'UNKNOWN');
+});
