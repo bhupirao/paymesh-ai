@@ -37,7 +37,16 @@ export const accounts = {
   a: 'browser-a@e2e.example.test',
   b: 'browser-b@e2e.example.test'
 };
+export function recordBrowserReady(browser, title) {
+  const allowed=['COMPLETE_NATIVE_BROWSER_JOURNEY','MOBILE_KEYBOARD_AND_VALIDATION','DESKTOP_KEYBOARD_AND_VALIDATION'];
+  requireSafe(allowed.includes(title) && browser.isConnected() && browser.browserType().name()==='chromium', 'CHROMIUM_WITNESS_REQUIRED');
+  fs.writeFileSync(path.join(guard(),'browser-launch-'+title+'.json'), JSON.stringify({testCode:title,chromiumLaunchStatus:'SUCCEEDED'}), {mode:0o600,flag:'wx'});
+}
 export const test = base.extend({
+  browserDiagnostics: [async ({ browser }, use, testInfo) => {
+    recordBrowserReady(browser, testInfo.title);
+    await use();
+  }, { auto: true }],
   context: async ({ context }, use) => {
     guard();
     await restrictNetwork(context);

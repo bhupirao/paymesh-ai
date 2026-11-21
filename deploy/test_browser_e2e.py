@@ -123,6 +123,18 @@ class BrowserPolicyTests(unittest.TestCase):
         with patch.object(browser_bootstrap,'ReleaseSuite',return_value=suite),self.assertRaises(Exception):browser_bootstrap.main('final')
         self.assertIn('SELECT count(*) FROM payments',suite.sql.call_args.args[0])
 
+    def test_failure_diagnostics_have_no_raw_error_or_artifact_exports(self):
+        source=(HERE/'sanitized-reporter.js').read_text()
+        for name in ['classifyFailure','HOOK_OR_FIXTURE_SETUP','chromiumLaunchStatus','elapsedMs','timeoutCategory','assertionCategory']:
+            self.assertIn(name,source)
+        for forbidden in ['JSON.stringify(error','error.stack','result.attachments','error.snippet']:
+            self.assertNotIn(forbidden,source)
+        self.assertIn("browser.isConnected()",(HERE/'fixtures.js').read_text())
+        self.assertIn("browser.browserType().name()==='chromium'",(HERE/'fixtures.js').read_text())
+        for step in self.steps:
+            if 'upload-artifact@' in step.get('uses',''):
+                self.assertNotIn('browser-launch-',step['with']['path'])
+
     def test_js_and_python_syntax(self):
         for source in list(HERE.glob('*.js'))+list(HERE.glob('*.mjs')):subprocess.run(['node','--check',str(source)],check=True,capture_output=True)
         ast.parse((ROOT/'deploy/browser_bootstrap.py').read_text())
@@ -130,7 +142,7 @@ class BrowserPolicyTests(unittest.TestCase):
     def test_real_offline_helpers_and_reporter(self):
         result=subprocess.run(['node',str(HERE/'offline.test.mjs')],capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('# pass 12',result.stdout)
+        self.assertIn('# pass 16',result.stdout)
         self.assertNotIn('NATIVE_CHROMIUM_E2E_PASS',result.stdout)
 
 
