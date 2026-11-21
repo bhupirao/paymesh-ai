@@ -1,0 +1,92 @@
+name: Short-lived authenticated acceptance demo (no publication)
+on:
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: Maximum authenticated access window after acceptance passes
+        required: true
+        type: choice
+        default: '10'
+        options: ['5', '10', '15']
+permissions:
+  contents: read
+concurrency:
+  group: paymesh-on-demand-demo
+  cancel-in-progress: false
+jobs:
+  demo:
+    if: github.repository == 'bhupirao/paymesh-ai' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    environment: demo-preview
+    env:
+      E2E_VERIFY_QWEN: 'true'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Offline security and regression admission
+        timeout-minutes: 4
+        run: python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      - name: Prepare unique synthetic credentials and owned database scope
+        run: python3 -B deploy/on_demand_demo.py fixtures
+      - name: Install locked Chromium on disposable runner only
+        timeout-minutes: 7
+        working-directory: deploy/browser-e2e
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx --no-install playwright install --with-deps chromium
+      - name: Download pinned Qwen and authenticated tunnel binary on runner only
+        timeout-minutes: 11
+        run: |
+          available=$(df -Pk "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
+          test "$available" -ge 8388608 || { echo 'INSUFFICIENT_DEMO_DISK'; exit 1; }
+          curl --fail --location --silent --show-error --max-time 600 --max-filesize 550000000 --output "$E2E_DIR/qwen.gguf" https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+          echo "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db  $E2E_DIR/qwen.gguf" | sha256sum --check --status
+          chmod 444 "$E2E_DIR/qwen.gguf"
+          curl --fail --location --silent --show-error --max-time 60 --max-filesize 50000000 --output "$E2E_DIR/cloudflared" https://github.com/cloudflare/cloudflared/releases/download/2026.11.1/cloudflared-linux-amd64
+          echo "97bb3b02d23a5980fc9c15a1a270e692da1923f103f920d5b16d4931d5ab55e7  $E2E_DIR/cloudflared" | sha256sum --check --status
+          chmod 700 "$E2E_DIR/cloudflared"
+      - name: Validate and start five immutable published services
+        id: startup
+        timeout-minutes: 8
+        run: |
+          docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.demo.yaml config --quiet
+          docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.demo.yaml pull --quiet
+          docker compose --project-name "$E2E_PROJECT" --env-file "$E2E_ENV" -f deploy/compose.demo.yaml up -d --no-build --pull never --wait --wait-timeout 240
+      - name: Verify image identity, exact V14 and empty DB; seed Admin only
+        run: python3 -B deploy/on_demand_demo.py seed
+      - name: Full native Chromium acceptance with real Qwen before public access
+        timeout-minutes: 14
+        working-directory: deploy/browser-e2e
+        run: npm test
+      - name: Verify final synthetic counts
+        run: python3 -B deploy/on_demand_demo.py final
+      - name: OTP-protected HTTPS acceptance session; close public access on exit
+        timeout-minutes: 17
+        env:
+          DEMO_ALLOWED_EMAIL: ${{ secrets.DEMO_ALLOWED_EMAIL }}
+          DEMO_MINUTES: ${{ inputs.duration_minutes }}
+        run: python3 -B deploy/on_demand_demo.py serve
+      - name: Fixed-code failure evidence before teardown
+        if: ${{ failure() && env.E2E_DIR != '' }}
+        run: python3 -B deploy/on_demand_demo.py diagnostics
+      - name: Verify public closure; remove only owned containers and volumes
+        if: ${{ always() && env.E2E_DIR != '' }}
+        timeout-minutes: 5
+        run: python3 -B deploy/on_demand_demo.py cleanup
+      - name: Retain allowlisted sanitized evidence only
+        if: ${{ always() && env.E2E_DIR != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: on-demand-demo-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.E2E_DIR }}/sanitized-browser.json
+            ${{ env.E2E_DIR }}/sanitized-browser-bootstrap.json
+            ${{ env.E2E_DIR }}/sanitized-browser-final.json
+            ${{ env.E2E_DIR }}/sanitized-demo-failure.json
+            ${{ env.E2E_DIR }}/public-access-closed.json
+            ${{ env.E2E_DIR }}/sanitized-cleanup.json
+          include-hidden-files: false
+          if-no-files-found: error
+          retention-days: 1

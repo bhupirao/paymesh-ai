@@ -1,0 +1,15 @@
+{
+  "release": "on-demand-demo",
+  "platform": "linux/amd64",
+  "applicationSource": "cefa7df83a5bf16d011e82041c95e2d93b9c637b",
+  "sourceE2ERun": 44652430877,
+  "reviewedMain": "c3bb92e971b17da2188e96172b16b7b001ec4ba4",
+  "images": {
+    "java": "bhupirao/paymesh-java@sha256:22649c06e406681e4ea699a60ebcf1d537068ec1091b0b72c678a749c792eb2b",
+    "python": "bhupirao/paymesh-python@sha256:29edd8acb856f9a19067592e9fb384e43ce74a060b1b6dabe04d747f0bfe65ee",
+    "frontend": "bhupirao/paymesh-frontend@sha256:a3f7e6929ae7754bc1c45a6d84be626e659e68f72bc559c4a177a0029dbb25e5",
+    "llama": "bhupirao/paymesh-llama@sha256:09a63d5e9312e4126b90cdc927045cbb69a654b66dd722e3823c53d4066bf74e"
+  },
+  "frontendSource": "a15410f2eb2c7d987c142fd7e3758eb237c6c70d",
+  "composeSha256": "67ce4357206393c957c19313b98e0db553f1a153af3d8aa419167dc3b0cfedec"
+}

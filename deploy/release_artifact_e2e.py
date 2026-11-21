@@ -210,7 +210,7 @@ def cleanup_project(project, folder, *, compose_file=COMPOSE, validate_config=No
     containers = ['docker', 'ps', '-a', '--no-trunc', '--filter',
                   'label=com.docker.compose.project='+project, '--format', '{{.ID}}']
     try:
-        require(compose_file in (COMPOSE, 'deploy/compose.candidate-browser.yaml'), 'CLEANUP_UNREVIEWED_COMPOSE')
+        require(compose_file in (COMPOSE, 'deploy/compose.candidate-browser.yaml', 'deploy/compose.demo.yaml'), 'CLEANUP_UNREVIEWED_COMPOSE')
         require(compose_file == COMPOSE or validate_config is not None, 'CLEANUP_CANDIDATE_VALIDATION_REQUIRED')
         config = json.loads(command(compose+['config', '--format', 'json']))
         if validate_config is not None:

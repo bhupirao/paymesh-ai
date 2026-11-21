@@ -1,0 +1,182 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PayMesh AI acceptance demo \u2014 selected API reference",
+    "version": "1.0.1",
+    "description": "Controller-validated subset, not an exhaustive generated specification. Simulated payments only. Interactive operations disabled. Cloudflare email authentication and application authentication are separate."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Sign in (JWT and browser refresh session)",
+        "description": "Read-only reference. This page cannot submit requests. See backend/API-REFERENCE.md for the complete contract.",
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "429": {
+            "description": "HTTP 429"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "login",
+                  "password"
+                ],
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  },
+                  "rememberMe": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "summary": "Rotate browser refresh session (Origin and X-PayMesh-CSRF required)",
+        "description": "Read-only reference. This page cannot submit requests. See backend/API-REFERENCE.md for the complete contract.",
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "429": {
+            "description": "HTTP 429"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Revoke current browser refresh session (CSRF required)",
+        "description": "Read-only reference. This page cannot submit requests. See backend/API-REFERENCE.md for the complete contract.",
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "429": {
+            "description": "HTTP 429"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "summary": "Revoke all account browser sessions (CSRF required)",
+        "description": "Read-only reference. This page cannot submit requests. See backend/API-REFERENCE.md for the complete contract.",
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "429": {
+            "description": "HTTP 429"
+          }
+        }
+      }
+    },
+    "/api/v1/payments/health": {
+      "get": {
+        "summary": "Payment service availability",
+        "description": "Read-only reference. This page cannot submit requests. See backend/API-REFERENCE.md for the complete contract.",
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          }
+        }
+      }
+    },
+    "/api/v1/payments": {
+      "post": {
+        "summary": "Create authorized simulated payment (Idempotency-Key required)",
+        "description": "Read-only reference. This page cannot submit requests. See backend/API-REFERENCE.md for the complete contract.",
+        "responses": {
+          "200": {
+            "description": "HTTP 200"
+          },
+          "201": {
+            "description": "HTTP 201"
+          },
+          "400": {
+            "description": "HTTP 400"
+          },
+          "401": {
+            "description": "HTTP 401"
+          },
+          "403": {
+            "description": "HTTP 403"
+          },
+          "409": {
+            "description": "HTTP 409"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
