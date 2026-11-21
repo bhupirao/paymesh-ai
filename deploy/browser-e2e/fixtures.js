@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { authBudget, AUTH_PATHS } from './auth-budget.js';
 import { test as base, expect } from '@playwright/test';
 export const ORIGIN = 'http://127.0.0.1:15500';
 export function requireSafe(ok, code) { if (!ok) throw new Error(code); }
@@ -71,6 +72,7 @@ export const test = base.extend({
   browserDiagnostics: [async ({ browser }, use, testInfo) => {
     recordBrowserReady(browser, testInfo.title);
     await use();
+    authBudget.assertHealthy();
   }, { auto: true }],
   context: async ({ context }, use) => {
     guard();
@@ -79,7 +81,19 @@ export const test = base.extend({
   }
 });
 export { expect };
+const monitoredContexts=new WeakSet();
 export async function restrictNetwork(context) {
+  if(!monitoredContexts.has(context)) {
+    monitoredContexts.add(context);
+    context.on('request',request=>{
+      let url;try{url=new URL(request.url());}catch{return;}
+      if(url.origin===ORIGIN&&request.method()==='POST'&&AUTH_PATHS.has(url.pathname)){
+        try{authBudget.request(request,request.frame().page(),url.pathname);}catch{authBudget.observationFailed=true;}
+      }
+    });
+    context.on('response',response=>authBudget.response(response.request(),response.status()));
+    context.on('requestfailed',request=>authBudget.failed(request));
+  }
   await context.route('**/*', route => {
     let allowed = false;
     try { allowed = new URL(route.request().url()).origin === ORIGIN; } catch { /* deny */ }
@@ -100,6 +114,7 @@ export function loginRoute(raw) {
   } catch { return {routeCode:'UNAVAILABLE',suffixPresent:false}; }
 }
 export function loginFeedback(text) {
+  if(/^Too many attempts\. (?:Wait [0-9]{1,5} seconds before trying again\.|Please wait before trying again\.)$/.test(text))return 'RATE_LIMITED';
   const known={
     '':'NO_FEEDBACK',
     'Signing in securely…':'LOGIN_PENDING',
@@ -125,10 +140,10 @@ export async function login(page, role, account) {
   };
   page.on('response',observe);
   try {
-    await page.goto(`/${role}/login`);
+    await navigate(page,`/${role}/login`);
     await page.locator('#login').fill(accounts[account]);
     await page.locator('#password').fill(credential(account === 'admin' ? 'admin_password' : 'merchant_password'));
-    await page.locator('#login-submit').click();
+    await authAction(page,'/api/v1/auth/login',()=>page.locator('#login-submit').click());
     await expect(page).toHaveURL(`${ORIGIN}/${role}/dashboard`);
     await expect(page.locator('#identity')).toBeVisible();
   } catch(error) {
@@ -180,8 +195,20 @@ export function exactAmount(value) {
   return match[1] + '.' + (match[2] || '').padEnd(2, '0');
 }
 export async function logout(page) {
-  const reply = responseFor(page, 'POST', '/api/v1/auth/logout');
-  await page.locator('#logout').click();
+  let reply;
+  await authAction(page,'/api/v1/auth/logout',async()=>{reply=responseFor(page,'POST','/api/v1/auth/logout');await page.locator('#logout').click();});
   await body(await reply);
   await expect(page.locator('#login-form')).toBeVisible();
+}
+
+export async function authAction(page,pathname,action) {return authBudget.run(page,pathname,action);}
+export async function navigate(page,target) {
+  const url=new URL(target,ORIGIN);requireSafe(url.origin===ORIGIN,'FIXED_BROWSER_TARGET_REQUIRED');
+  if(/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(url.pathname))return page.goto(target);
+  return authAction(page,'/api/v1/auth/refresh',()=>page.goto(target));
+}
+export async function refreshPage(page) {
+  const url=new URL(page.url());requireSafe(url.origin===ORIGIN,'FIXED_BROWSER_TARGET_REQUIRED');
+  if(/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(url.pathname))return page.reload();
+  return authAction(page,'/api/v1/auth/refresh',()=>page.reload());
 }

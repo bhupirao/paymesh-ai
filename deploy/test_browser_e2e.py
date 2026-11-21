@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
@@ -99,7 +100,7 @@ class BrowserPolicyTests(unittest.TestCase):
             self.assertIn("test.step('"+stage+"'",self.journey)
         for control in ['#signup-check','#confirm-create','#confirm-process','#confirm-refund','#investigate-button','Confirm approve','Confirm Pay (simulation only)','Rename saved conversation','Delete saved conversation']:
             self.assertIn(control,self.journey)
-        self.assertIn('modelSuccess(await body',self.journey);self.assertIn('await p.reload()',self.journey)
+        self.assertIn('modelSuccess(await body',self.journey);self.assertIn('await refreshPage(p)',self.journey)
         self.assertIn('Shift+Enter',self.journey);self.assertIn('0 accessible matches',self.journey)
 
     def test_selector_ids_exist_in_actual_frontend(self):
@@ -166,6 +167,68 @@ class BrowserPolicyTests(unittest.TestCase):
             if 'upload-artifact@' in step.get('uses',''):self.assertNotIn('browser-login-',step['with']['path'])
         self.assertIn("'INVALID_AUTH_RESPONSE'",fixture)
 
+    def test_auth_scheduler_matches_unchanged_server_scope_and_defaults(self):
+        limiter=(ROOT/'backend/src/main/java/com/paymesh/backend/security/auth/LoginRateLimitFilter.java').read_text()
+        properties=(ROOT/'backend/src/main/resources/application.properties').read_text()
+        proxy=(ROOT/'frontend/dev_server.py').read_text()
+        budget=(HERE/'auth-budget.js').read_text()
+        self.assertIn('limiter.acquire(request.getRemoteAddr())',limiter)
+        for name in ['login','register','refresh','logout','logout-all']:
+            self.assertIn('/api/v1/auth/'+name,limiter)
+            self.assertIn('/api/v1/auth/'+name,budget)
+        self.assertIn('PAYMESH_LOGIN_MAX_ATTEMPTS:10',properties)
+        self.assertIn('PAYMESH_LOGIN_WINDOW_SECONDS:60',properties)
+        self.assertIn('this.used>=9',budget);self.assertIn('61000',budget)
+        self.assertNotIn('X-Forwarded-For',proxy)
+        compose=(ROOT/'deploy/compose.release-verify.yaml').read_text()
+        self.assertNotIn('PAYMESH_LOGIN_MAX_ATTEMPTS',compose)
+        self.assertNotIn('PAYMESH_LOGIN_WINDOW_SECONDS',compose)
+
+    def test_pacing_wraps_native_ui_actions_without_changing_assertions(self):
+        fixture=(HERE/'fixtures.js').read_text()
+        self.assertIn("return authAction(page,'/api/v1/auth/refresh',()=>page.goto(target))",fixture)
+        self.assertIn("return authAction(page,'/api/v1/auth/refresh',()=>page.reload())",fixture)
+        self.assertIn("authAction(page,'/api/v1/auth/login'",fixture)
+        self.assertIn("authAction(page,'/api/v1/auth/logout'",fixture)
+        self.assertIn("authAction(p,'/api/v1/auth/register'",self.journey)
+        self.assertIn('test.setTimeout(900_000)',self.journey)
+        self.assertIn('authBudget.assertHealthy()',fixture)
+        self.assertNotIn('.goto(',self.journey)
+        self.assertNotIn('.reload(',self.journey)
+        self.assertIn('await expect(page).toHaveURL(`${ORIGIN}/${role}/dashboard`)',fixture)
+
+    def test_actual_java_limiter_allows_budget_denies_excess_and_expires(self):
+        # Compile only the production JDK-only limiter and an ephemeral harness.
+        # No Maven build, Spring context, database, service, or application edit.
+        source=ROOT/'backend/src/main/java/com/paymesh/backend/security/auth/LoginRateLimiter.java'
+        harness="""package com.paymesh.backend.security.auth;
+import java.time.*;
+public class AuthBudgetProof {
+ static class T extends Clock {
+  Instant t=Instant.parse("2026-01-01T00:00:00Z");
+  public ZoneId getZone(){return ZoneOffset.UTC;}
+  public Clock withZone(ZoneId z){return this;}
+  public Instant instant(){return t;}
+ }
+ static void check(boolean b){if(!b)throw new AssertionError("AUTH_LIMITER_PROOF_FAILED");}
+ public static void main(String[] args){
+  T clock=new T();LoginRateLimiter limiter=new LoginRateLimiter(10,60,10000,clock);
+  for(int i=0;i<10;i++)check(limiter.acquire("127.0.0.1").allowed());
+  check(!limiter.acquire("127.0.0.1").allowed());
+  check(limiter.acquire("127.0.0.1").retryAfterSeconds()==60);
+  clock.t=clock.t.plusSeconds(59);check(!limiter.acquire("127.0.0.1").allowed());
+  check(limiter.acquire("127.0.0.1").retryAfterSeconds()==1);
+  clock.t=clock.t.plusSeconds(1);check(limiter.acquire("127.0.0.1").allowed());
+  check(limiter.acquire("another-client").allowed());
+  System.out.println("PRODUCTION_AUTH_LIMITER_16_CHECKS_PASS");
+ }
+}"""
+        with tempfile.TemporaryDirectory(prefix='paymesh-java-auth-proof-') as folder:
+            test=Path(folder)/'AuthBudgetProof.java';test.write_text(harness)
+            subprocess.run(['javac','-d',folder,str(source),str(test)],check=True,capture_output=True,timeout=30)
+            result=subprocess.run(['java','-cp',folder,'com.paymesh.backend.security.auth.AuthBudgetProof'],check=True,capture_output=True,text=True,timeout=15)
+            self.assertIn('PRODUCTION_AUTH_LIMITER_16_CHECKS_PASS',result.stdout)
+
     def test_js_and_python_syntax(self):
         for source in list(HERE.glob('*.js'))+list(HERE.glob('*.mjs')):subprocess.run(['node','--check',str(source)],check=True,capture_output=True)
         ast.parse((ROOT/'deploy/browser_bootstrap.py').read_text())
@@ -173,7 +236,7 @@ class BrowserPolicyTests(unittest.TestCase):
     def test_real_offline_helpers_and_reporter(self):
         result=subprocess.run(['node',str(HERE/'offline.test.mjs')],capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('# pass 32',result.stdout)
+        self.assertIn('# pass 41',result.stdout)
         self.assertNotIn('NATIVE_CHROMIUM_E2E_PASS',result.stdout)
 
 

@@ -1,6 +1,7 @@
-import { test, expect, ORIGIN, accounts, credential, newPage, login, responseFor, body, modelSuccess, requireSafe, noOverflow, openHistory, safeDialog, exactAmount, logout } from './fixtures.js';
+import { test, expect, ORIGIN, accounts, credential, newPage, login, responseFor, body, modelSuccess, requireSafe, noOverflow, openHistory, safeDialog, exactAmount, logout, navigate, refreshPage, authAction } from './fixtures.js';
 
 test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
+  test.setTimeout(900_000); // Includes bounded admission waits for the unchanged 60s auth limiter.
   const sessions = await Promise.all([newPage(browser), newPage(browser), newPage(browser), newPage(browser)]);
   const [merchant, other, admin, customer] = sessions;
   let merchantId, paymentId;
@@ -8,7 +9,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
     await test.step('MERCHANT_REGISTRATION_VALIDATION', async () => {
       for (const [actor, key] of [[merchant,'a'],[other,'b']]) {
         const p = actor.page;
-        await p.goto('/merchant/signup');
+        await navigate(p,'/merchant/signup');
         await p.locator('#signup-check').click();
         await expect(p.locator('#signup-feedback')).toContainText('Check the highlighted fields');
         for (const [field,value] of Object.entries({firstName:'Browser',lastName:key,businessName:`Disposable browser ${key}`,email:accounts[key],mobile:'+12025550101'})) await p.locator(`#signup-${field}`).fill(value);
@@ -18,8 +19,8 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
         await p.locator('#signup-password').fill(password);
         await p.locator('#signup-confirmPassword').fill(password);
         await p.locator('#signup-terms').check();
-        const reply=responseFor(p,'POST','/api/v1/auth/register');
-        await p.locator('#signup-check').click();
+        let reply;
+        await authAction(p,'/api/v1/auth/register',async()=>{reply=responseFor(p,'POST','/api/v1/auth/register');await p.locator('#signup-check').click();});
         requireSafe((await body(await reply,[201])).accountStatus==='PENDING_APPROVAL','REGISTRATION_STATUS');
         await expect(p.locator('#signup-success-link')).toBeVisible();
       }
@@ -32,7 +33,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await login(admin.page,'admin','admin');
       for (const key of ['a','b']) {
         const p=admin.page;
-        await p.goto('/admin/merchants');
+        await navigate(p,'/admin/merchants');
         const root=p.locator('#admin-workspace');
         await expect(root.getByRole('button',{name:'Apply / Look up',exact:true})).toBeEnabled();
         await root.getByLabel('Search',{exact:true}).fill(accounts[key]);
@@ -64,18 +65,18 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
     await test.step('DASHBOARD_SESSION_AND_ROLE_PROTECTION', async () => {
       const p=merchant.page;
       await expect(p.locator('#merchant-workspace')).toBeVisible();
-      await p.reload();
+      await refreshPage(p);
       await expect(p.locator('#merchant-workspace')).toBeVisible();
       await p.setViewportSize({width:375,height:812});await noOverflow(p);
       await p.setViewportSize({width:1440,height:1000});
-      await p.goto('/admin/dashboard');
+      await navigate(p,'/admin/dashboard');
       await expect(p.locator('#login-form')).toBeVisible();
       await expect(p.locator('#admin-workspace')).toBeHidden();
-      await p.goto('/merchant/dashboard');
+      await navigate(p,'/merchant/dashboard');
       await expect(p.locator('#merchant-workspace')).toBeVisible();
-      await admin.page.goto('/merchant/dashboard');
+      await navigate(admin.page,'/merchant/dashboard');
       await expect(admin.page.locator('#merchant-workspace')).toBeHidden();
-      await admin.page.goto('/admin/dashboard');
+      await navigate(admin.page,'/admin/dashboard');
       await expect(admin.page.locator('#admin-workspace')).toBeVisible();
       await admin.page.setViewportSize({width:375,height:812});await noOverflow(admin.page);
       await admin.page.setViewportSize({width:1440,height:1000});
@@ -102,7 +103,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       const processed=responseFor(p,'POST',`/api/v1/payments/${paymentId}/process`);
       await p.locator('#confirm-process').click();
       requireSafe((await body(await processed)).status==='SUCCESS','PAYMENT_PROCESSING_STATUS');
-      await p.goto('/merchant/payments');
+      await navigate(p,'/merchant/payments');
       await expect(p.locator('#merchant-workspace').getByRole('row').filter({hasText:paymentId})).toContainText('SUCCESS');
       await p.locator('#merchant-workspace').getByRole('row').filter({hasText:paymentId}).getByRole('button',{name:'Open payment',exact:true}).click();
       await expect(p.locator('#details-id')).toHaveText(paymentId);
@@ -149,7 +150,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
     });
     await test.step('PAYMENT_LINK_AND_CUSTOMER_CHECKOUT', async () => {
       const p=merchant.page;
-      await p.goto('/merchant/payment-links/create');
+      await navigate(p,'/merchant/payment-links/create');
       const root=p.locator('#merchant-links-workspace');
       await root.getByLabel('Currency',{exact:true}).selectOption('USD');
       await root.getByLabel('Amount',{exact:true}).fill('25.00');
@@ -162,7 +163,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       const url=await root.getByLabel('Customer checkout URL (simulation only)').inputValue();
       requireSafe(new URL(url).origin===ORIGIN&&/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(new URL(url).pathname),'FIXED_CHECKOUT_URL');
       const c=customer.page;
-      await c.goto(url);
+      await navigate(c,url);
       await expect(c.getByRole('heading',{name:'PayMesh AI · Customer checkout'})).toBeVisible();
       await expect(c.getByText('25.00 USD',{exact:true})).toBeVisible();
       await c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click();
@@ -173,7 +174,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await c.getByRole('button',{name:'Confirm Pay (simulation only)',exact:true}).click();
       requireSafe((await body(await paid)).checkoutStatus==='PAID','PAID_CHECKOUT_REQUIRED');
       await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
-      await c.reload();
+      await refreshPage(c);
       await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
       await c.setViewportSize({width:375,height:812});await noOverflow(c);
     });
@@ -183,7 +184,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
         const observe=req=>{if(req.method()==='POST'&&/^\/api\/v1\/(merchant|admin)\/ai\/(chat|conversations(?:\/[^/]+\/messages)?)$/.test(new URL(req.url()).pathname))submissions++;};
         p.on('request',observe);
         try {
-          await p.goto(`/${role}/ai`);
+          await navigate(p,`/${role}/ai`);
           const root=p.locator(`#${role}-ai-workspace`),composer=root.getByLabel('Your payment-domain question');
           await expect(composer).toBeEnabled();requireSafe(submissions===0,'AUTOMATIC_AI_REQUEST');
           await composer.fill('What is idempotency?');
@@ -212,11 +213,11 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
           requireSafe((await body(await historyRead)).total===1,'SAVED_TURN_REQUIRED');
           await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
           const before=submissions;
-          await p.reload();
+          await refreshPage(p);
           await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
           requireSafe(submissions===before,'RESTORE_INVOKED_MODEL');
           if(role==='merchant') {
-            await other.page.goto('/merchant/ai');
+            await navigate(other.page,'/merchant/ai');
             const otherRoot=other.page.locator('#merchant-ai-workspace');
             await expect(otherRoot.getByLabel('Your payment-domain question')).toBeEnabled();await openHistory(otherRoot);
             const otherList=responseFor(other.page,'GET','/api/v1/merchant/ai/conversations');
@@ -225,7 +226,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
             await expect(otherRoot.locator('.conversation-history')).toContainText('0 accessible matches');
             await expect(otherRoot.getByRole('button',{name:/Browser merchant history/})).toHaveCount(0);
             // Admin has its own private history while this Merchant turn exists.
-            await admin.page.goto('/admin/ai');
+            await navigate(admin.page,'/admin/ai');
             const adminRoot=admin.page.locator('#admin-ai-workspace');
             await expect(adminRoot.getByLabel('Your payment-domain question')).toBeEnabled();
             await openHistory(adminRoot);
@@ -247,12 +248,12 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
     });
     await test.step('CROSS_TAB_LOGOUT_AND_PROTECTED_ROUTE', async () => {
       const p=merchant.page,tab=await merchant.context.newPage();
-      await tab.goto('/merchant/dashboard');await expect(tab.locator('#merchant-workspace')).toBeVisible();
+      await navigate(tab,'/merchant/dashboard');await expect(tab.locator('#merchant-workspace')).toBeVisible();
       await logout(p);
       await expect(p.locator('#login-form')).toBeVisible();
       await expect(tab.locator('#login-form')).toBeVisible();
       await expect(tab.locator('#merchant-workspace')).toBeHidden();
-      await tab.goto('/merchant/ai');await expect(tab.locator('#login-form')).toBeVisible();
+      await navigate(tab,'/merchant/ai');await expect(tab.locator('#login-form')).toBeVisible();
       await tab.close();
       await logout(admin.page);await expect(admin.page.locator('#login-form')).toBeVisible();
       await logout(other.page);await expect(other.page.locator('#login-form')).toBeVisible();

@@ -5,7 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 const fixtureSource=fs.readFileSync(new URL('./fixtures.js',import.meta.url),'utf8').replace("import { test as base, expect } from '@playwright/test';", "const base={extend: definitions => definitions}; const expect=()=>{throw new Error('UI_NOT_EXECUTED_OFFLINE');};");
-const f=await import('data:text/javascript;base64,'+Buffer.from(fixtureSource).toString('base64'));
+const budgetSource=fs.readFileSync(new URL('./auth-budget.js',import.meta.url),'utf8');
+const budgetURL='data:text/javascript;base64,'+Buffer.from(budgetSource).toString('base64');
+const fixtureWithBudget=fixtureSource.replace("import { authBudget, AUTH_PATHS } from './auth-budget.js';","import {authBudget,AUTH_PATHS} from '"+budgetURL+"';");
+const f=await import('data:text/javascript;base64,'+Buffer.from(fixtureWithBudget).toString('base64'));
+const {AuthBudget}=await import(budgetURL);
 function context() {
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'paymesh-browser-offline-'));
   const real=fs.realpathSync(temp),dir=path.join(real,'paymesh-e2e-123-1');fs.mkdirSync(dir,{mode:0o700});
@@ -35,7 +39,7 @@ test('response parser is bounded and errors contain only fixed codes',async()=>{
   for(const response of [{status:()=>403,text:async()=> 'PRIVATE_CANARY'},{status:()=>200,text:async()=> 'PRIVATE_CANARY'},{status:()=>200,text:async()=> 'x'.repeat(524289)}])await assert.rejects(f.body(response),error=>!error.message.includes('PRIVATE_CANARY'));
 });
 test('browser network policy permits only frontend origin',async()=>{
-  let handler;await f.restrictNetwork({route:async(pattern,fn)=>{handler=fn;}});
+  let handler;await f.restrictNetwork({on:()=>{},route:async(pattern,fn)=>{handler=fn;}});
   for(const [url,allowed] of [['http://127.0.0.1:15500/merchant/ai',true],['http://127.0.0.1:18080/api/v1/auth/login',false],['https://third-party.invalid',false]]){
     let result;await handler({request:()=>({url:()=>url}),continue:()=>{result=true;},abort:()=>{result=false;}});assert.equal(result,allowed);
   }
@@ -229,4 +233,51 @@ test('malformed login observations are ignored without exposing their values',as
   fs.writeFileSync(path.join(dir,'browser-login-'+title+'.json'),JSON.stringify({testCode:title,portalRole:'MERCHANT',httpStatus:200,routeCode:'PRIVATE_CANARY',suffixPresent:false,feedbackCode:'NO_FEEDBACK'}),{mode:0o600});
   r.onTestEnd({id:'internal',title},{status:'failed',duration:1});finish(r,{status:'failed'});
   const text=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8');assert.equal(JSON.parse(text).tests[0].loginState,null);assert.equal(text.includes('PRIVATE_CANARY'),false);
+});
+
+test('auth admission allows nine operations then waits the known limiter window',async()=>{
+  let now=0;const waits=[],budget=new AuthBudget({now:()=>now,sleep:async ms=>{waits.push(ms);now+=ms;}}),page={};let calls=0;
+  for(let i=0;i<10;i++)await budget.run(page,'/api/v1/auth/login',async()=>{calls++;});
+  assert.equal(calls,10);assert.deepEqual(waits,[61000]);assert.equal(budget.used,1);
+});
+test('auth roles and endpoint kinds share one scheduling budget',async()=>{
+  let now=0;const budget=new AuthBudget({now:()=>now,sleep:async ms=>{now+=ms;}}),paths=['/api/v1/auth/register','/api/v1/auth/refresh','/api/v1/auth/login','/api/v1/auth/logout','/api/v1/auth/logout-all'];
+  for(let i=0;i<10;i++)await budget.run({role:i%2?'ADMIN':'MERCHANT'},paths[i%paths.length],async()=>{});
+  assert.equal(now,61000);assert.equal(budget.used,1);
+});
+test('auth request observation does not double count a reserved submit',async()=>{
+  let now=0;const budget=new AuthBudget({now:()=>now,sleep:async ms=>{now+=ms;}}),page={},request={method:()=> 'POST'};
+  await budget.run(page,'/api/v1/auth/login',async()=>{budget.request(request,page,'/api/v1/auth/login');budget.response(request,200);});
+  assert.equal(budget.used,1);assert.equal(budget.requestCount,1);budget.assertHealthy();
+});
+test('unplanned startup refreshes consume the same observed auth budget',async()=>{
+  let now=0;const waits=[],budget=new AuthBudget({now:()=>now,sleep:async ms=>{waits.push(ms);now+=ms;}});
+  for(let i=0;i<9;i++){const request={method:()=> 'POST'};budget.request(request,{},'/api/v1/auth/refresh');budget.response(request,401);}
+  let called=false;await budget.run({},'/api/v1/auth/login',async()=>{called=true;});assert.equal(called,true);assert.deepEqual(waits,[61000]);
+});
+test('pacing waits before HTTP action and uses response completion as quiet-window baseline',async()=>{
+  let now=0;const budget=new AuthBudget({now:()=>now,sleep:async ms=>{now+=ms;}}),page={};
+  for(let i=0;i<9;i++)await budget.run(page,'/api/v1/auth/login',async()=>{});
+  const request={method:()=> 'POST'};budget.request(request,{},'/api/v1/auth/refresh');now=10000;budget.response(request,401);
+  let at=0;await budget.run(page,'/api/v1/auth/login',async()=>{at=now;});assert.equal(at,71000);
+});
+test('observed 429 fails rather than retries a login',async()=>{
+  const budget=new AuthBudget(),page={},request={method:()=> 'POST'};let calls=0;
+  await budget.run(page,'/api/v1/auth/login',async()=>{calls++;budget.request(request,page,'/api/v1/auth/login');budget.response(request,429);});
+  assert.throws(()=>budget.assertHealthy(),/AUTH_LIMIT_OBSERVED/);
+  await assert.rejects(budget.run(page,'/api/v1/auth/login',async()=>{calls++;}),/AUTH_LIMIT_OBSERVED/);assert.equal(calls,1);
+});
+test('auth admission wait is bounded and does not silently retry work',async()=>{
+  let now=0;const budget=new AuthBudget({now:()=>now,sleep:async ms=>{now+=ms;budget.lastActivity=now;}});
+  for(let i=0;i<9;i++)await budget.run({},'/api/v1/auth/login',async()=>{});
+  let called=false;await assert.rejects(budget.run({},'/api/v1/auth/login',async()=>{called=true;}),/AUTH_BUDGET_WAIT_LIMIT/);assert.equal(called,false);
+});
+test('no auth pacing cost for read-only APIs and observation failure is fail closed',()=>{
+  const budget=new AuthBudget();budget.request({method:()=> 'GET'},{},'/api/v1/merchant/dashboard');assert.equal(budget.used,0);
+  budget.observationFailed=true;assert.throws(()=>budget.assertHealthy(),/AUTH_OBSERVATION_FAILED/);
+});
+test('known UI rate-limit feedback is classified without retaining time text',()=>{
+  assert.equal(f.loginFeedback('Too many attempts. Wait 43 seconds before trying again.'),'RATE_LIMITED');
+  assert.equal(f.loginFeedback('Too many attempts. Please wait before trying again.'),'RATE_LIMITED');
+  assert.equal(f.loginFeedback('Too many attempts. PRIVATE_CANARY'),'OTHER_FEEDBACK');
 });
