@@ -1,0 +1,54 @@
+name: Publish read-only REST API documentation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-static-api-documentation
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'bhupirao/paymesh-ai' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # reviewed v6
+        with:
+          persist-credentials: false
+      - name: Prepare isolated build-only validator
+        run: |
+          python3 -m venv "$RUNNER_TEMP/pages-validator"
+          "$RUNNER_TEMP/pages-validator/bin/python" -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r deploy/requirements-pages.txt
+      - name: Check source contracts and static documentation security
+        run: |
+          python3 -B -m unittest discover -s deploy -p 'test_api_docs.py'
+          node deploy/api_docs.test.mjs
+      - name: Build and formally validate the allowlisted static artifact
+        run: '"$RUNNER_TEMP/pages-validator/bin/python" -B deploy/build_api_docs.py --formal --output "$RUNNER_TEMP/paymesh-api-site"'
+      - name: Read existing Pages configuration without enabling it
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        with:
+          enablement: false
+      - name: Upload only generated static documentation
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/paymesh-api-site
+          retention-days: 1
+  deploy:
+    needs: build
+    if: github.repository == 'bhupirao/paymesh-ai' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy reviewed static documentation to Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

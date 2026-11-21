@@ -1,0 +1,6 @@
+{
+  "source": "https://spec.openapis.org/oas/3.0/schema/2024-10-18",
+  "sha256": "2385f5bbb8c37878daae73baeabe7f34b2f022a4a8c049329ee61f71796f039c",
+  "validator": "jsonschema==4.26.0",
+  "scope": "Build-only; not part of the deployed site"
+}

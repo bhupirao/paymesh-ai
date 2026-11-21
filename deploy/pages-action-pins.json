@@ -1,0 +1,12 @@
+{
+  "workflow": ".github/workflows/api-docs-pages.yml",
+  "repositoryAllowlistUpdateRequired": true,
+  "direct": {
+    "actions/configure-pages": "45bfe0192ca1faeb007ade9deae92b16b8254a0d",
+    "actions/upload-pages-artifact": "fc324d3547104276b827a68afc52ff2a11cc49c9",
+    "actions/deploy-pages": "368f82528645a54fb793d4d04e342629a3f51346"
+  },
+  "nested": {
+    "actions/upload-artifact": "bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
+  }
+}

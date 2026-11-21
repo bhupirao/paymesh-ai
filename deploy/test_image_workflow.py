@@ -56,12 +56,19 @@ class ImageWorkflowTests(unittest.TestCase):
     def test_all_workflow_actions_are_reviewed_immutable_pins(self):
         expected={'actions/checkout@11d5960a326750d5838078e36cf38b85af677262', 'docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc', 'actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3', 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9', 'docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550', 'docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069', 'actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803'}
         for path in sorted((ROOT/'.github/workflows').glob('*.yml')):
+            # New official Pages actions are admitted only in this manual docs
+            # workflow; all existing release workflows retain the old allowlist.
+            permitted=expected | ({
+                'actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d',
+                'actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9',
+                'actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346',
+            } if path.name=='api-docs-pages.yml' else set())
             workflow=json.loads(subprocess.check_output(['ruby','-rjson','-ryaml','-e','puts JSON.generate(YAML.load_file(ARGV[0]))',str(path)]))
             for job in workflow['jobs'].values():
                 for step in job.get('steps',[]):
                     if step.get('uses'):
                         with self.subTest(workflow=path.name,action=step['uses']):
-                            self.assertIn(step['uses'],expected)
+                            self.assertIn(step['uses'],permitted)
                             self.assertRegex(step['uses'],r'^[A-Za-z0-9_-]+/[A-Za-z0-9_-]+@[0-9a-f]{40}$')
     def test_loaded_image_architecture_verified_on_runner(self):
         step=next(s for s in self.steps if s.get('name')=='Verify locally loaded image architecture')

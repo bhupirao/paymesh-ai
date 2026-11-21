@@ -12,6 +12,8 @@ Built to demonstrate Java backend architecture, transaction safety, Spring Secur
 
 [Architecture](#architecture) · [Features](#implemented-features) · [Workflows](#user-workflows) · [AI design](#ai-investigation-and-conversations) · [Setup](#local-development) · [Testing](#testing-and-verification) · [Docker](#docker-and-github-actions) · [Documentation](#documentation)
 
+**API documentation — deployment pending:** [Public Swagger UI](https://bhupirao.github.io/paymesh-ai/) is prepared but not yet deployed or verified. It is a read-only selected API reference; the backend is not permanently hosted.
+
 ## The problem
 
 A payment timeout does not necessarily mean failure. Retried requests can create duplicate operations, refunds need complete history, and support teams need to explain what happened without guessing about bank settlement.
