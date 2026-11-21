@@ -1,4 +1,4 @@
-import { test, expect, ORIGIN, accounts, credential, newPage, login, responseFor, body, modelSuccess, requireSafe, noOverflow, openHistory, safeDialog, exactAmount, logout, navigate, refreshPage, authAction } from './fixtures.js';
+import { test, expect, ORIGIN, accounts, credential, newPage, login, responseFor, body, modelSuccess, requireSafe, noOverflow, openHistory, safeDialog, exactAmount, logout, navigate, refreshPage, authAction, checkpoint } from './fixtures.js';
 
 test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
   test.setTimeout(900_000); // Includes bounded admission waits for the unchanged 60s auth limiter.
@@ -30,36 +30,52 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await expect(merchant.page.locator('#login-form')).toBeVisible();
     });
     await test.step('ADMIN_LOGIN_AND_NATIVE_APPROVAL', async () => {
-      await login(admin.page,'admin','admin');
+      await checkpoint('ADMIN_LOGIN_STARTED',()=>login(admin.page,'admin','admin'));
+      await checkpoint('ADMIN_DASHBOARD_VISIBLE',()=>expect(admin.page.locator('#admin-workspace')).toBeVisible());
       for (const key of ['a','b']) {
         const p=admin.page;
-        await navigate(p,'/admin/merchants');
+        await checkpoint('MERCHANT_SEARCH_STARTED',()=>navigate(p,'/admin/merchants'));
         const root=p.locator('#admin-workspace');
         await expect(root.getByRole('button',{name:'Apply / Look up',exact:true})).toBeEnabled();
-        await root.getByLabel('Search',{exact:true}).fill(accounts[key]);
+        await checkpoint('MERCHANT_SEARCH_INPUT',()=>root.getByLabel('Search',{exact:true}).fill(accounts[key]));
         const list=responseFor(p,'GET','/api/v1/admin/merchants');
-        await root.getByRole('button',{name:'Apply / Look up',exact:true}).click();
-        const rows=(await body(await list)).items;
+        const rows=(await checkpoint('MERCHANT_SEARCH_COMPLETED',async()=>{
+          await root.getByRole('button',{name:'Apply / Look up',exact:true}).click();
+          return body(await list);
+        })).items;
         requireSafe(rows.length===1,'UNIQUE_PENDING_MERCHANT_REQUIRED');
         if(key==='a') merchantId=rows[0].merchantId;
-        await root.getByRole('row').filter({hasText:accounts[key]}).getByRole('button',{name:'Open',exact:true}).click();
-        await root.getByLabel('External ownership review reference').fill('CI-BROWSER-OWNERSHIP');
-        await root.getByLabel('I attest that ownership was reviewed for this exact Merchant.').check();
-        await root.getByRole('button',{name:'Review approve',exact:true}).click();
+        await checkpoint('MERCHANT_DETAIL_OPENED',async()=>{
+          await root.getByRole('row').filter({hasText:accounts[key]}).getByRole('button',{name:'Open',exact:true}).click();
+          await expect(p).toHaveURL(ORIGIN+'/admin/merchant');
+          await expect(root.getByLabel('External ownership review reference')).toBeVisible();
+        });
+        await checkpoint('APPROVAL_REVIEW_FILLED',async()=>{
+          await root.getByLabel('External ownership review reference').fill('CI-BROWSER-OWNERSHIP');
+          await root.getByLabel('I attest that ownership was reviewed for this exact Merchant.').check();
+        });
         const dialog=root.getByRole('dialog',{name:'Confirm Merchant administration'});
-        await expect(dialog).toBeFocused();
-        await dialog.getByRole('button',{name:'Cancel review',exact:true}).click();
+        await checkpoint('APPROVAL_DIALOG_OPENED',async()=>{
+          await root.getByRole('button',{name:'Review approve',exact:true}).click();
+          await expect(dialog).toBeFocused();
+        });
+        await checkpoint('APPROVAL_CANCELLED',()=>dialog.getByRole('button',{name:'Cancel review',exact:true}).click());
         await expect(dialog).toHaveCount(0);
-        await root.getByLabel('External ownership review reference').fill('CI-BROWSER-OWNERSHIP');
-        await root.getByLabel('I attest that ownership was reviewed for this exact Merchant.').check();
-        await root.getByRole('button',{name:'Review approve',exact:true}).click();
+        await checkpoint('APPROVAL_REVIEW_FILLED',async()=>{
+          await root.getByLabel('External ownership review reference').fill('CI-BROWSER-OWNERSHIP');
+          await root.getByLabel('I attest that ownership was reviewed for this exact Merchant.').check();
+        });
+        await checkpoint('APPROVAL_DIALOG_OPENED',async()=>{
+          await root.getByRole('button',{name:'Review approve',exact:true}).click();
+          await expect(dialog).toBeFocused();
+        });
         const approved=responseFor(p,'POST','/api/v1/admin/merchant/approve');
-        await root.getByRole('dialog').getByRole('button',{name:'Confirm approve',exact:true}).click();
-        await body(await approved);
+        await checkpoint('APPROVAL_SUBMITTED',()=>root.getByRole('dialog').getByRole('button',{name:'Confirm approve',exact:true}).click());
+        const active=await checkpoint('APPROVAL_CONFIRMED',async()=>body(await approved));
+        requireSafe(active.merchantId===rows[0].merchantId&&active.status==='ACTIVE','APPROVAL_STATE_REQUIRED');
         await expect(root.getByLabel('External ownership review reference')).toHaveCount(0);
       }
-      await login(merchant.page,'merchant','a');
-      await login(other.page,'merchant','b');
+      await checkpoint('ACTIVE_MERCHANT_LOGIN',async()=>{await login(merchant.page,'merchant','a');await login(other.page,'merchant','b');});
       await expect(merchant.page.locator('#pending-onboarding')).toBeHidden();
     });
     await test.step('DASHBOARD_SESSION_AND_ROLE_PROTECTION', async () => {
@@ -91,8 +107,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await expect(p.locator('#creation-review')).toBeVisible();
       await expect(p.locator('#creation-review')).toContainText('13.25');
       const created=responseFor(p,'POST','/api/v1/payments');
-      await p.locator('#confirm-create').click();
-      const payment=await body(await created,[201]);paymentId=payment.paymentId;
+      const payment=await checkpoint('PAYMENT_CREATED',async()=>{await p.locator('#confirm-create').click();return body(await created,[201]);});paymentId=payment.paymentId;
       requireSafe(payment.status==='CREATED'&&String(payment.amount)==='13.25','CREATED_PAYMENT_CONTRACT');
       await expect(p.locator('#created-result')).toContainText(paymentId);
       await p.locator('#created-process').click();
@@ -101,9 +116,9 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await expect(p.locator('#process-panel')).toBeHidden();
       await p.locator('#created-process').click();
       const processed=responseFor(p,'POST',`/api/v1/payments/${paymentId}/process`);
-      await p.locator('#confirm-process').click();
-      requireSafe((await body(await processed)).status==='SUCCESS','PAYMENT_PROCESSING_STATUS');
-      await navigate(p,'/merchant/payments');
+      const processedPayment=await checkpoint('PAYMENT_PROCESSED',async()=>{await p.locator('#confirm-process').click();return body(await processed);});
+      requireSafe(processedPayment.status==='SUCCESS','PAYMENT_PROCESSING_STATUS');
+      await checkpoint('PAYMENT_LIST_OPENED',()=>navigate(p,'/merchant/payments'));
       await expect(p.locator('#merchant-workspace').getByRole('row').filter({hasText:paymentId})).toContainText('SUCCESS');
       await p.locator('#merchant-workspace').getByRole('row').filter({hasText:paymentId}).getByRole('button',{name:'Open payment',exact:true}).click();
       await expect(p.locator('#details-id')).toHaveText(paymentId);
@@ -113,17 +128,16 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await p.locator('#nav-lookup').click();
       await p.locator('#payment-id').fill(paymentId);
       const denied=responseFor(p,'GET',`/api/v1/payments/${paymentId}`);
-      await p.locator('#lookup-submit').click();
-      requireSafe([403,404].includes((await denied).status()),'OWNERSHIP_DENIAL_REQUIRED');
-      await expect(p.locator('#lookup-feedback')).toContainText(/not accessible|not permitted/i);
+      const denial=await checkpoint('OWNERSHIP_DENIAL',async()=>{await p.locator('#lookup-submit').click();return denied;});
+      requireSafe([403,404].includes(denial.status()),'OWNERSHIP_DENIAL_REQUIRED');
+      await expect(p.locator('#lookup-feedback')).toContainText(/not accessible|not permitted|Access denied/i);
       await expect(p.locator('#payment-result')).toBeEmpty();
     });
     await test.step('NATIVE_INVESTIGATION_REAL_QWEN', async () => {
       const p=merchant.page;
       await expect(p.locator('#investigate-button')).toBeEnabled();
       const reply=responseFor(p,'POST',`/api/v1/payments/${paymentId}/investigate`);
-      await p.locator('#investigate-button').click();
-      const result=modelSuccess(await body(await reply));
+      const result=modelSuccess(await checkpoint('INVESTIGATION_SUBMITTED',async()=>{await p.locator('#investigate-button').click();return body(await reply);}));
       requireSafe(result.paymentId===paymentId,'INVESTIGATION_SCOPE');
       await expect(p.locator('#investigation-result')).toBeVisible();
       await expect(p.locator('#investigation-result')).toContainText('Customer view');
@@ -137,8 +151,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
         await p.locator('#refund-form').getByRole('button',{name:'Review refund',exact:true}).click();
         await expect(p.locator('#refund-review')).toBeFocused();
         const refunded=responseFor(p,'POST',`/api/v1/payments/${paymentId}/refund`);
-        await p.locator('#confirm-refund').click();
-        const result=await body(await refunded,[201]);
+        const result=await checkpoint('REFUND_SUBMITTED',async()=>{await p.locator('#confirm-refund').click();return body(await refunded,[201]);});
         requireSafe(result.status==='SUCCESS'&&exactAmount(result.amount)===amount,'REFUND_RECORD');
         await expect(p.locator('#confirmed-refund')).toBeVisible();
         await expect(p.locator('#refund-summary')).toContainText(total+' INR');
@@ -158,8 +171,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await root.getByLabel('Customer / order reference (optional)').fill('browser-checkout');
       await root.getByRole('button',{name:'Review link',exact:true}).click();
       const created=responseFor(p,'POST','/api/v1/merchant/payment-links');
-      await root.getByRole('button',{name:'Confirm create payment link',exact:true}).click();
-      await body(await created,[201]);
+      await checkpoint('CHECKOUT_LINK_CREATED',async()=>{await root.getByRole('button',{name:'Confirm create payment link',exact:true}).click();return body(await created,[201]);});
       const url=await root.getByLabel('Customer checkout URL (simulation only)').inputValue();
       requireSafe(new URL(url).origin===ORIGIN&&/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(new URL(url).pathname),'FIXED_CHECKOUT_URL');
       const c=customer.page;
@@ -171,8 +183,8 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
       await c.getByRole('button',{name:'Back to checkout',exact:true}).click();
       await c.getByRole('button',{name:'Pay — review simulated payment',exact:true}).click();
       const paid=responseFor(c,'POST',/^\/api\/v1\/checkout\/[A-Za-z0-9_-]{43}\/pay$/);
-      await c.getByRole('button',{name:'Confirm Pay (simulation only)',exact:true}).click();
-      requireSafe((await body(await paid)).checkoutStatus==='PAID','PAID_CHECKOUT_REQUIRED');
+      const receipt=await checkpoint('CHECKOUT_SUBMITTED',async()=>{await c.getByRole('button',{name:'Confirm Pay (simulation only)',exact:true}).click();return body(await paid);});
+      requireSafe(receipt.checkoutStatus==='PAID','PAID_CHECKOUT_REQUIRED');
       await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
       await refreshPage(c);
       await expect(c.getByRole('heading',{name:'Simulated payment receipt',exact:true})).toBeVisible();
@@ -186,35 +198,42 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
         try {
           await navigate(p,`/${role}/ai`);
           const root=p.locator(`#${role}-ai-workspace`),composer=root.getByLabel('Your payment-domain question');
-          await expect(composer).toBeEnabled();requireSafe(submissions===0,'AUTOMATIC_AI_REQUEST');
+          await expect(composer).toBeEnabled({timeout:25_000});requireSafe(submissions===0,'AUTOMATIC_AI_REQUEST');
           await composer.fill('What is idempotency?');
           await composer.press('Shift+Enter');
           await expect(composer).toHaveValue('What is idempotency?\n');
           requireSafe(submissions===0,'SHIFT_ENTER_SENT_QUESTION');
           const reply=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/messages$`));
-          if(role==='merchant')await composer.press('Enter');else await root.getByRole('button',{name:'Send question',exact:true}).click();
-          modelSuccess(await body(await reply));
+          modelSuccess(await checkpoint('CHAT_SUBMITTED',async()=>{
+            if(role==='merchant')await composer.press('Enter');else await root.getByRole('button',{name:'Send question',exact:true}).click();
+            return body(await reply);
+          }));
           await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
           requireSafe((await root.locator('.ai-assistant .ai-answer').innerText()).trim().length>0,'VISIBLE_ANSWER_REQUIRED');
           await openHistory(root);
           await root.getByLabel('Conversation title',{exact:true}).fill(`Browser ${role} history`);
           const renamed=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/rename$`));
-          await root.getByRole('button',{name:'Rename saved conversation',exact:true}).click();
-          await body(await renamed);
+          await checkpoint('HISTORY_RENAMED',async()=>{await root.getByRole('button',{name:'Rename saved conversation',exact:true}).click();return body(await renamed);});
           await expect(root.locator('.conversation-history')).toContainText(`Current: Browser ${role} history`);
           await root.getByLabel('Search owned conversation titles').fill(`Browser ${role} history`);
           const ownList=responseFor(p,'GET',`/api/v1/${role}/ai/conversations`);
-          await root.getByRole('button',{name:'Load saved conversations',exact:true}).click();
-          requireSafe((await body(await ownList)).total===1,'OWNED_HISTORY_SEARCH');
+          const owned=await checkpoint('HISTORY_LISTED',async()=>{await root.getByRole('button',{name:'Load saved conversations',exact:true}).click();return body(await ownList);});
+          requireSafe(owned.total===1,'OWNED_HISTORY_SEARCH');
           const selected=root.getByRole('button',{name:`Browser ${role} history · Current`,exact:true});
           await expect(selected).toBeVisible();
           const historyRead=responseFor(p,'GET',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/messages$`));
-          await safeDialog(p,()=>selected.click());
-          requireSafe((await body(await historyRead)).total===1,'SAVED_TURN_REQUIRED');
+          const saved=await checkpoint('HISTORY_LOADED',async()=>{await safeDialog(p,()=>selected.click());return body(await historyRead);});
+          requireSafe(saved.total===1,'SAVED_TURN_REQUIRED');
           await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
           const before=submissions;
-          await refreshPage(p);
-          await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
+          await checkpoint('HISTORY_REFRESHED',async()=>{
+            await refreshPage(p);
+            // Intentionally retain the released-application requirement. The
+            // source audit finds this deep-link restoration currently broken;
+            // never turn it into an explicit-load workaround or silent pass.
+            await expect(p).toHaveURL(ORIGIN+`/${role}/ai`);
+            await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible();
+          });
           requireSafe(submissions===before,'RESTORE_INVOKED_MODEL');
           if(role==='merchant') {
             await navigate(other.page,'/merchant/ai');
@@ -239,8 +258,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
           await p.setViewportSize({width:1440,height:1000});
           await openHistory(root);
           const deleted=responseFor(p,'POST',new RegExp(`^/api/v1/${role}/ai/conversations/[^/]+/delete$`));
-          await safeDialog(p,()=>root.getByRole('button',{name:'Delete saved conversation',exact:true}).click());
-          await body(await deleted);
+          await checkpoint('HISTORY_DELETED',async()=>{await safeDialog(p,()=>root.getByRole('button',{name:'Delete saved conversation',exact:true}).click());return body(await deleted);});
           await expect(root.locator('.conversation-history')).toContainText('No saved conversation selected');
           await expect(root.locator('.ai-assistant')).toHaveCount(0);
         } finally {p.off('request',observe);}
@@ -248,7 +266,7 @@ test('COMPLETE_NATIVE_BROWSER_JOURNEY', async ({ browser }) => {
     });
     await test.step('CROSS_TAB_LOGOUT_AND_PROTECTED_ROUTE', async () => {
       const p=merchant.page,tab=await merchant.context.newPage();
-      await navigate(tab,'/merchant/dashboard');await expect(tab.locator('#merchant-workspace')).toBeVisible();
+      await checkpoint('CROSS_TAB_RESTORED',async()=>{await navigate(tab,'/merchant/dashboard');await expect(tab.locator('#merchant-workspace')).toBeVisible();});
       await logout(p);
       await expect(p.locator('#login-form')).toBeVisible();
       await expect(tab.locator('#login-form')).toBeVisible();

@@ -13,7 +13,7 @@ export class AuthBudget {
     if(request.method()!=='POST'||!AUTH_PATHS.has(pathname))return;
     this.requests.add(request);this.requestCount++;this.lastActivity=this.now();
     const reservation=this.active.get(page);
-    if(reservation&&!reservation.claimed&&reservation.path===pathname)reservation.claimed=true;
+    if(reservation?.admitted&&!reservation.claimed&&reservation.path===pathname)reservation.claimed=true;
     else this.used++;
   }
   response(request,status) {
@@ -25,6 +25,9 @@ export class AuthBudget {
   async run(page,pathname,action) {
     if(!AUTH_PATHS.has(pathname)||this.active.has(page))throw new Error('AUTH_ACTION_SCOPE_REQUIRED');
     this.assertHealthy();const began=this.now();
+    const reservation={path:pathname,claimed:false,admitted:false};
+    this.active.set(page,reservation);
+    try {
     while(this.used>=9) {
       this.assertHealthy();
       const remaining=61000-(this.now()-this.lastActivity);
@@ -35,8 +38,9 @@ export class AuthBudget {
     this.assertHealthy();
     if(this.now()-this.lastActivity>=61000)this.used=0;
     this.used++;this.lastActivity=this.now();
-    this.active.set(page,{path:pathname,claimed:false});
-    try{return await action();}finally{this.active.delete(page);}
+    reservation.admitted=true;
+    return await action();
+    }finally{this.active.delete(page);}
   }
 }
 export const authBudget=new AuthBudget();

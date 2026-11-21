@@ -12,6 +12,11 @@ import { createWorkspace, rolePresentation } from './features/workspace.js';
 import { installLifecycle } from './auth/session.js';
 import { setText } from './components/dom.js';
 import { renderPayment } from './components/payment.js';
+// Restore the validated memory-only session before constructing the router or
+// conversation stores. Early routing erases protected history entries; early
+// stores treat hydration as an account change and clear the tab bookmark.
+const persistence=installPersistence();
+await persistence.restore().catch(()=>{clearSession('refresh-failed');});
 const $ = id => document.getElementById(id);
 let previousSession = null;let accountSwitcher;let switchState={busy:false,uncertain:false};
 let paymentsUI;
@@ -104,6 +109,4 @@ $('account-menu').addEventListener('toggle',async()=>{
 });
 installLifecycle();
 workspace.start();
-const persistence=installPersistence();
-void persistence.restore();
 setInterval(()=>{const session=getSession();if(session)$('expiry').textContent=`Access expires at ${new Date(session.expires).toLocaleString()}. Server session refresh uses an HttpOnly cookie.`;},30000);

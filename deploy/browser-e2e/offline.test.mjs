@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-const fixtureSource=fs.readFileSync(new URL('./fixtures.js',import.meta.url),'utf8').replace("import { test as base, expect } from '@playwright/test';", "const base={extend: definitions => definitions}; const expect=()=>{throw new Error('UI_NOT_EXECUTED_OFFLINE');};");
+const fixtureSource=fs.readFileSync(new URL('./fixtures.js',import.meta.url),'utf8').replace("import { test as base, expect } from '@playwright/test';", "const base={extend: definitions => ({...definitions,step:async(code,action)=>action(),info:()=>({annotations:[]})})}; const expect=()=>{throw new Error('UI_NOT_EXECUTED_OFFLINE');};");
 const budgetSource=fs.readFileSync(new URL('./auth-budget.js',import.meta.url),'utf8');
 const budgetURL='data:text/javascript;base64,'+Buffer.from(budgetSource).toString('base64');
 const fixtureWithBudget=fixtureSource.replace("import { authBudget, AUTH_PATHS } from './auth-budget.js';","import {authBudget,AUTH_PATHS} from '"+budgetURL+"';");
@@ -46,7 +46,7 @@ test('browser network policy permits only frontend origin',async()=>{
 });
 async function reporter() {
   const c=context();process.env.BROWSER_OFFLINE_FIXTURE=c.dir;
-  const source=fs.readFileSync(new URL('./sanitized-reporter.js',import.meta.url),'utf8').replace("import { guard } from './fixtures.js';","const guard=()=>process.env.BROWSER_OFFLINE_FIXTURE;");
+  const source=fs.readFileSync(new URL('./sanitized-reporter.js',import.meta.url),'utf8').replace("import { guard, ACTION_CODES } from './fixtures.js';","const guard=()=>process.env.BROWSER_OFFLINE_FIXTURE; const ACTION_CODES=new Set(['ADMIN_LOGIN_STARTED', 'LOGIN_RESPONSE_RECEIVED', 'ADMIN_DASHBOARD_VISIBLE', 'MERCHANT_SEARCH_STARTED', 'MERCHANT_SEARCH_INPUT', 'MERCHANT_SEARCH_COMPLETED', 'MERCHANT_DETAIL_OPENED', 'APPROVAL_REVIEW_FILLED', 'APPROVAL_DIALOG_OPENED', 'APPROVAL_CANCELLED', 'APPROVAL_SUBMITTED', 'APPROVAL_CONFIRMED', 'ACTIVE_MERCHANT_LOGIN', 'PAYMENT_CREATED', 'PAYMENT_PROCESSED', 'PAYMENT_LIST_OPENED', 'OWNERSHIP_DENIAL', 'INVESTIGATION_SUBMITTED', 'REFUND_SUBMITTED', 'CHECKOUT_LINK_CREATED', 'CHECKOUT_SUBMITTED', 'CHAT_SUBMITTED', 'HISTORY_RENAMED', 'HISTORY_LISTED', 'HISTORY_LOADED', 'HISTORY_REFRESHED', 'HISTORY_DELETED', 'CROSS_TAB_RESTORED', 'LOGOUT_CONFIRMED', 'PORTAL_NAVIGATION', 'SESSION_REFRESH']);");
   const {default:Reporter}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
   return {instance:new Reporter(),classify:(await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'))).classifyFailure,dir:c.dir};
 }
@@ -175,7 +175,7 @@ test('stdout diagnostics contain only safe fields and retain JSON evidence',asyn
   assert.equal(output.includes('PRIVATE_CANARY'),false);assert.equal(output.includes('not-exported'),false);
   const lines=output.trim().split('\n');assert.equal(lines.length,2);
   assert.ok(lines[0].startsWith('BROWSER_FAILURE_DIAGNOSTIC='));const value=JSON.parse(lines[0].split('=',2)[1]);
-  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory','loginState'].sort());
+  assert.deepEqual(Object.keys(value).sort(),['testCode','stageCode','category','errorCode','elapsedMs','chromiumLaunchStatus','assertionCategory','timeoutCategory','loginState','location','lastCompletedActionCode','pendingActionCode','lastObservedHttpStatus'].sort());
   assert.equal(value.errorCode,'PRIVATE_OUTPUT_REQUIRED');assert.equal(value.chromiumLaunchStatus,'NOT_OBSERVED');assert.equal(value.stageCode,'HOOK_OR_FIXTURE_SETUP');
   const saved=fs.readFileSync(path.join(dir,'sanitized-browser.json'),'utf8');assert.equal(saved.includes('PRIVATE_CANARY'),false);assert.equal(JSON.parse(saved).tests[0].diagnostic.errorCode,'PRIVATE_OUTPUT_REQUIRED');
 });
@@ -280,4 +280,86 @@ test('known UI rate-limit feedback is classified without retaining time text',()
   assert.equal(f.loginFeedback('Too many attempts. Wait 43 seconds before trying again.'),'RATE_LIMITED');
   assert.equal(f.loginFeedback('Too many attempts. Please wait before trying again.'),'RATE_LIMITED');
   assert.equal(f.loginFeedback('Too many attempts. PRIVATE_CANARY'),'OTHER_FEEDBACK');
+});
+
+// Coordinated source-contract audit. These execute pure routing/model helpers,
+// not Chromium, HTTP requests or a replacement for the native journey.
+test('protected navigation plans use visible SPA controls and preserve role boundaries',()=>{
+  for(const [route,label] of Object.entries(f.PORTAL_BUTTONS)) {
+    const role=route.split('/')[1];const plan=f.navigationPlan(`/${role}/dashboard`,route,true);
+    assert.equal(plan.spa,true);assert.equal(plan.button,label);
+  }
+  assert.equal(f.navigationPlan('/admin/dashboard','/merchant/payments',true).spa,false);
+  assert.equal(f.navigationPlan('/admin/login','/admin/merchants',false).spa,false);
+  assert.equal(f.navigationPlan('/merchant/dashboard','/merchant/payment-links/create',true).createLink,true);
+  for(const target of ['https://foreign.invalid/x','/admin/merchants?private=CANARY','/admin/merchants#CANARY'])assert.throws(()=>f.navigationPlan('/admin/dashboard',target,true),/FIXED_BROWSER_TARGET_REQUIRED/);
+});
+test('actual released router demonstrates hard deep-link redirect and bookmark loss',async()=>{
+  let source=fs.readFileSync(new URL('../../frontend/assets/js/portals/router.js',import.meta.url),'utf8')
+    .replace("import { MERCHANT_PAGES } from '../merchant/routes.js';", "const MERCHANT_PAGES={'/merchant/dashboard':'Dashboard','/merchant/ai':'AI Assistant'};")
+    .replace("import { ADMIN_PAGES } from '../admin/routes.js';", "const ADMIN_PAGES={'/admin/dashboard':'Dashboard','/admin/merchants':'Merchant Management','/admin/ai':'AI Assistant'};")
+    .replace("import { checkExpiry, getSession, subscribe } from '../auth/session.js';", "const checkExpiry=()=>{},getSession=()=>null,subscribe=()=>()=>{};");
+  const {createRouter}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+  for(const initial of ['/admin/merchants','/admin/ai','/merchant/ai']){
+    let session=null;const role=initial.split('/')[1].toUpperCase();
+    const target={location:{pathname:initial},history:{state:{paymeshConversation:{id:'synthetic-pointer'}},replaceState(value,unused,next){this.state=value;if(next)target.location.pathname=next;},pushState(value,unused,next){this.state=value;target.location.pathname=next;}},addEventListener(){},removeEventListener(){}};
+    const router=createRouter(()=>{},{target,session:()=>session,expiry:()=>{},watch:()=>()=>{}});
+    assert.equal(router.start().path,`/${role.toLowerCase()}/login`);assert.equal(target.history.state,null);
+    session={roles:[role]};assert.equal(router.refresh().path,`/${role.toLowerCase()}/dashboard`);
+    // The proper in-session UI route transition reaches the requested view.
+    assert.equal(router.navigate(initial).path,initial);
+  }
+});
+test('admin Search exists for merchants but not dashboard in the released view contract',()=>{
+  const view=fs.readFileSync(new URL('../../frontend/assets/js/admin/view.js',import.meta.url),'utf8');
+  assert.match(view,/if\(view!=='dashboard'\)labeled\(form/);
+  assert.ok(view.includes("?'Exact Admin login':'Search'"));
+  for(const value of ['External ownership review reference','I attest that ownership was reviewed for this exact Merchant.','Confirm Merchant administration','Cancel review'])assert.ok(view.includes(value));
+});
+test('ordinary response waits stay narrow while investigation and saved-chat allow client deadlines',()=>{
+  assert.equal(f.responseTimeout('/api/v1/admin/merchants'),25000);
+  assert.equal(f.responseTimeout('/api/v1/merchant/ai/conversations/synthetic/messages','GET'),25000);
+  assert.equal(f.responseTimeout('/api/v1/payments/synthetic/investigate'),70000);
+  assert.equal(f.responseTimeout(/^\/api\/v1\/merchant\/ai\/conversations\/[^/]+\/messages$/),70000);
+  const client=fs.readFileSync(new URL('../../frontend/assets/js/api/config.js',import.meta.url),'utf8');
+  assert.ok(client.includes('investigationTimeoutMs: 65000'));assert.ok(client.includes('chatTimeoutMs: 45000'));assert.ok(client.includes('timeoutMs: 20000'));
+});
+test('concurrent page admissions share the budget and excess waiters fail within its bound',async()=>{
+  let now=0,waiters=[],admitted=[];const budget=new AuthBudget({now:()=>now,sleep:ms=>new Promise(resolve=>waiters.push({at:now+ms,resolve}))});
+  const jobs=Array.from({length:25},(_,i)=>budget.run({i},'/api/v1/auth/login',async()=>admitted.push(now)));
+  const outcome=Promise.allSettled(jobs);assert.equal(admitted.length,9);
+  while(waiters.length){const batch=waiters;waiters=[];now=Math.min(...batch.map(x=>x.at));for(const item of batch)item.resolve();await Promise.resolve();await Promise.resolve();}
+  const results=await outcome;assert.equal(results.filter(x=>x.status==='fulfilled').length,18);
+  const rejected=results.filter(x=>x.status==='rejected');assert.equal(rejected.length,7);for(const value of rejected)assert.equal(value.reason.message,'AUTH_BUDGET_WAIT_LIMIT');
+  assert.deepEqual([...new Set(admitted)],[0,61000]);for(const time of new Set(admitted))assert.ok(admitted.filter(x=>x===time).length<=9);assert.equal(budget.active.size,0);
+});
+test('same-page concurrent waiter is rejected before it can overwrite a reservation',async()=>{
+  let now=0,resume;const budget=new AuthBudget({now:()=>now,sleep:ms=>new Promise(resolve=>{resume=()=>{now+=ms;resolve();};})}),page={};
+  for(let i=0;i<9;i++)await budget.run({},'/api/v1/auth/login',async()=>{});
+  let calls=0;const first=budget.run(page,'/api/v1/auth/login',async()=>{calls++;});
+  await assert.rejects(budget.run(page,'/api/v1/auth/login',async()=>{calls++;}),/AUTH_ACTION_SCOPE_REQUIRED/);
+  resume();await first;assert.equal(calls,1);assert.equal(budget.active.size,0);
+});
+test('checkpoint allowlist rejects dynamic or sensitive action names',async()=>{
+  await assert.rejects(f.checkpoint('PRIVATE_CANARY_URL_TOKEN',async()=>{}),/FIXED_ACTION_CODE_REQUIRED/);
+  let called=false;await f.checkpoint('MERCHANT_SEARCH_INPUT',async()=>{called=true;});assert.equal(called,true);
+});
+test('reporter retains innermost pending action, safe HTTP status and source location only',async()=>{
+  const {instance:r,dir}=await reporter(),t={id:'synthetic',title:'COMPLETE_NATIVE_BROWSER_JOURNEY',annotations:[{type:'safe-http-status',description:'200'},{type:'private',description:'PRIVATE_CANARY'}]};
+  r.onTestBegin(t);r.onStepBegin(t,null,{category:'test.step',title:'ADMIN_LOGIN_AND_NATIVE_APPROVAL'});
+  r.onStepBegin(t,null,{category:'test.step',title:'ADMIN_DASHBOARD_VISIBLE'});r.onStepEnd(t,null,{category:'test.step',title:'ADMIN_DASHBOARD_VISIBLE'});
+  r.onStepBegin(t,null,{category:'test.step',title:'MERCHANT_SEARCH_STARTED'});r.onStepBegin(t,null,{category:'test.step',title:'MERCHANT_SEARCH_INPUT'});
+  r.onStepEnd(t,null,{category:'test.step',title:'MERCHANT_SEARCH_INPUT',error:{message:'PRIVATE_CANARY'}});
+  r.onStepEnd(t,null,{category:'test.step',title:'MERCHANT_SEARCH_STARTED',error:{message:'PRIVATE_CANARY'}});
+  r.onTestEnd(t,{status:'failed',duration:10,error:{name:'TimeoutError',message:'locator.fill: Timeout 15000ms exceeded PRIVATE_CANARY',location:{file:'/private/journey.spec.js',line:39}}});
+  let output='';const write=process.stdout.write;process.stdout.write=value=>{output+=value;return true;};try{r.onEnd({status:'failed'});}finally{process.stdout.write=write;}
+  const record=JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json'))).tests[0];
+  assert.equal(record.lastCompletedActionCode,'ADMIN_DASHBOARD_VISIBLE');assert.equal(record.pendingActionCode,'MERCHANT_SEARCH_INPUT');assert.equal(record.lastObservedHttpStatus,200);
+  assert.equal(record.failedStage,'ADMIN_LOGIN_AND_NATIVE_APPROVAL');assert.equal(record.diagnostic.location.line,39);
+  assert.equal(output.includes('PRIVATE_CANARY'),false);assert.ok(output.includes('MERCHANT_SEARCH_INPUT'));
+});
+test('invalid HTTP status annotations and unclassified steps never enter action diagnostics',async()=>{
+  const {instance:r,dir}=await reporter(),t={id:'synthetic',title:'COMPLETE_NATIVE_BROWSER_JOURNEY',annotations:[{type:'safe-http-status',description:'PRIVATE_CANARY'}]};
+  r.onTestBegin(t);r.onStepBegin(t,null,{category:'test.step',title:'PRIVATE_CANARY'});r.onTestEnd(t,{status:'failed',duration:1,error:{message:'PRIVATE_CANARY'}});finish(r,{status:'failed'});
+  const record=JSON.parse(fs.readFileSync(path.join(dir,'sanitized-browser.json'))).tests[0];assert.equal(record.lastObservedHttpStatus,null);assert.equal(record.pendingActionCode,null);assert.equal(record.diagnostic.category,'UNKNOWN');
 });

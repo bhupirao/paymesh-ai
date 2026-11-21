@@ -100,7 +100,7 @@ class BrowserPolicyTests(unittest.TestCase):
             self.assertIn("test.step('"+stage+"'",self.journey)
         for control in ['#signup-check','#confirm-create','#confirm-process','#confirm-refund','#investigate-button','Confirm approve','Confirm Pay (simulation only)','Rename saved conversation','Delete saved conversation']:
             self.assertIn(control,self.journey)
-        self.assertIn('modelSuccess(await body',self.journey);self.assertIn('await refreshPage(p)',self.journey)
+        self.assertIn("modelSuccess(await checkpoint('CHAT_SUBMITTED',async()=>{",self.journey);self.assertIn('await refreshPage(p)',self.journey)
         self.assertIn('Shift+Enter',self.journey);self.assertIn('0 accessible matches',self.journey)
 
     def test_selector_ids_exist_in_actual_frontend(self):
@@ -186,8 +186,8 @@ class BrowserPolicyTests(unittest.TestCase):
 
     def test_pacing_wraps_native_ui_actions_without_changing_assertions(self):
         fixture=(HERE/'fixtures.js').read_text()
-        self.assertIn("return authAction(page,'/api/v1/auth/refresh',()=>page.goto(target))",fixture)
-        self.assertIn("return authAction(page,'/api/v1/auth/refresh',()=>page.reload())",fixture)
+        self.assertIn("return authAction(page,'/api/v1/auth/refresh',async()=>{",fixture)
+        self.assertIn("return checkpoint('SESSION_REFRESH',()=>authAction(page,'/api/v1/auth/refresh',async()=>{",fixture)
         self.assertIn("authAction(page,'/api/v1/auth/login'",fixture)
         self.assertIn("authAction(page,'/api/v1/auth/logout'",fixture)
         self.assertIn("authAction(p,'/api/v1/auth/register'",self.journey)
@@ -196,6 +196,50 @@ class BrowserPolicyTests(unittest.TestCase):
         self.assertNotIn('.goto(',self.journey)
         self.assertNotIn('.reload(',self.journey)
         self.assertIn('await expect(page).toHaveURL(`${ORIGIN}/${role}/dashboard`)',fixture)
+
+    def test_spa_navigation_matches_released_portal_buttons(self):
+        fixture=(HERE/'fixtures.js').read_text()
+        portal=(ROOT/'frontend/assets/js/portals/view.js').read_text()
+        for label in ['Merchant Management','AI Assistant','Payments','Payment Links','Overview','Dashboard']:
+            self.assertIn("'"+label+"'",fixture)
+            self.assertIn("'"+label+"'",portal)
+        self.assertIn("locator('#portal-nav-extra').getByRole('button'",fixture)
+        self.assertIn("getByRole('button',{name:'Create Payment Link',exact:true})",fixture)
+        self.assertIn('await expect(page).toHaveURL(ORIGIN+url.pathname)',fixture)
+
+    def test_refresh_requirement_is_not_replaced_with_explicit_history_load(self):
+        start=self.journey.index("checkpoint('HISTORY_REFRESHED'")
+        section=self.journey[start:self.journey.index("requireSafe(submissions===before",start)]
+        self.assertIn('await refreshPage(p)',section)
+        self.assertIn('await expect(p).toHaveURL(ORIGIN+`/${role}/ai`)',section)
+        self.assertIn("await expect(root.locator('.ai-assistant .ai-answer')).toBeVisible()",section)
+        self.assertNotIn('Load saved conversations',section)
+        self.assertNotIn('navigate(',section)
+
+    def test_action_checkpoints_and_strict_approval_contract(self):
+        for code in ['ADMIN_LOGIN_STARTED','ADMIN_DASHBOARD_VISIBLE','MERCHANT_SEARCH_INPUT','MERCHANT_SEARCH_COMPLETED','APPROVAL_DIALOG_OPENED','APPROVAL_CANCELLED','APPROVAL_SUBMITTED','APPROVAL_CONFIRMED','HISTORY_REFRESHED']:
+            self.assertIn("checkpoint('"+code+"'",self.journey)
+        self.assertIn("active.merchantId===rows[0].merchantId&&active.status==='ACTIVE'",self.journey)
+        self.assertIn('UNIQUE_PENDING_MERCHANT_REQUIRED',self.journey)
+        self.assertIn('Cancel review',self.journey)
+        self.assertIn('Review approve',self.journey)
+        reporter=(HERE/'sanitized-reporter.js').read_text()
+        for field in ['lastCompletedActionCode','pendingActionCode','lastObservedHttpStatus']:
+            self.assertIn(field,reporter)
+        self.assertIn('ACTION_CODES.has(step.title)',reporter)
+
+    def test_pacing_and_ai_waits_remain_bounded_without_security_overrides(self):
+        fixture=(HERE/'fixtures.js').read_text()
+        budget=(HERE/'auth-budget.js').read_text()
+        self.assertIn('90'+'000',budget)
+        self.assertIn('70_000 : 25_000',fixture)
+        self.assertIn('test.setTimeout(900_000)',self.journey)
+        self.assertIn('globalTimeout: 1_800_000',self.config)
+        self.assertIn('actionTimeout: 15_000',self.config)
+        self.assertIn('navigationTimeout: 30_000',self.config)
+        for forbidden in ['X-Forwarded-For','PAYMESH_LOGIN_MAX_ATTEMPTS','test.skip','test.fixme']:
+            self.assertNotIn(forbidden,self.journey+fixture+budget)
+        self.assertLess(budget.index('this.active.set(page,reservation)'),budget.index('await this.sleep(remaining)'))
 
     def test_actual_java_limiter_allows_budget_denies_excess_and_expires(self):
         # Compile only the production JDK-only limiter and an ephemeral harness.
@@ -236,7 +280,7 @@ public class AuthBudgetProof {
     def test_real_offline_helpers_and_reporter(self):
         result=subprocess.run(['node',str(HERE/'offline.test.mjs')],capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('# pass 41',result.stdout)
+        self.assertIn('# pass 50',result.stdout)
         self.assertNotIn('NATIVE_CHROMIUM_E2E_PASS',result.stdout)
 
 

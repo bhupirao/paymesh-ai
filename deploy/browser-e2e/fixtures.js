@@ -3,6 +3,16 @@ import path from 'node:path';
 import { authBudget, AUTH_PATHS } from './auth-budget.js';
 import { test as base, expect } from '@playwright/test';
 export const ORIGIN = 'http://127.0.0.1:15500';
+export const ACTION_CODES = new Set(['ADMIN_LOGIN_STARTED', 'LOGIN_RESPONSE_RECEIVED', 'ADMIN_DASHBOARD_VISIBLE', 'MERCHANT_SEARCH_STARTED', 'MERCHANT_SEARCH_INPUT', 'MERCHANT_SEARCH_COMPLETED', 'MERCHANT_DETAIL_OPENED', 'APPROVAL_REVIEW_FILLED', 'APPROVAL_DIALOG_OPENED', 'APPROVAL_CANCELLED', 'APPROVAL_SUBMITTED', 'APPROVAL_CONFIRMED', 'ACTIVE_MERCHANT_LOGIN', 'PAYMENT_CREATED', 'PAYMENT_PROCESSED', 'PAYMENT_LIST_OPENED', 'OWNERSHIP_DENIAL', 'INVESTIGATION_SUBMITTED', 'REFUND_SUBMITTED', 'CHECKOUT_LINK_CREATED', 'CHECKOUT_SUBMITTED', 'CHAT_SUBMITTED', 'HISTORY_RENAMED', 'HISTORY_LISTED', 'HISTORY_LOADED', 'HISTORY_REFRESHED', 'HISTORY_DELETED', 'CROSS_TAB_RESTORED', 'LOGOUT_CONFIRMED', 'PORTAL_NAVIGATION', 'SESSION_REFRESH']);
+export async function checkpoint(code, action) {
+  requireSafe(ACTION_CODES.has(code), 'FIXED_ACTION_CODE_REQUIRED');
+  return test.step(code, action);
+}
+function recordHttpStatus(status) {
+  if(Number.isInteger(status)&&status>=100&&status<=599){
+    try{test.info().annotations.push({type:'safe-http-status',description:String(status)});}catch{/* Test may already be tearing down. No raw diagnostic is retained. */}
+  }
+}
 export function requireSafe(ok, code) { if (!ok) throw new Error(code); }
 export function guard(env = process.env) {
   requireSafe(env.GITHUB_ACTIONS === 'true' && env.RUNNER_OS === 'Linux' && env.RUNNER_ENVIRONMENT === 'github-hosted', 'HOSTED_RUNNER_REQUIRED');
@@ -102,6 +112,7 @@ export async function restrictNetwork(context) {
 }
 export async function newPage(browser) {
   const context = await browser.newContext({ baseURL: ORIGIN, viewport: { width: 1440, height: 1000 }, acceptDownloads: false, serviceWorkers: 'block' });
+  context.setDefaultTimeout(15_000);context.setDefaultNavigationTimeout(30_000);
   await restrictNetwork(context);
   return { context, page: await context.newPage() };
 }
@@ -143,7 +154,10 @@ export async function login(page, role, account) {
     await navigate(page,`/${role}/login`);
     await page.locator('#login').fill(accounts[account]);
     await page.locator('#password').fill(credential(account === 'admin' ? 'admin_password' : 'merchant_password'));
-    await authAction(page,'/api/v1/auth/login',()=>page.locator('#login-submit').click());
+    await authAction(page,'/api/v1/auth/login',async()=>{
+      const reply=responseFor(page,'POST','/api/v1/auth/login');
+      await Promise.all([page.locator('#login-submit').click(), checkpoint('LOGIN_RESPONSE_RECEIVED',async()=>body(await reply))]);
+    });
     await expect(page).toHaveURL(`${ORIGIN}/${role}/dashboard`);
     await expect(page.locator('#identity')).toBeVisible();
   } catch(error) {
@@ -159,11 +173,21 @@ export async function login(page, role, account) {
     throw error;
   } finally {page.off('response',observe);}
 }
+export function responseTimeout(pathname,method='POST') {
+  const text=String(pathname);
+  return method==='POST'&&/investigate|messages/.test(text) ? 70_000 : 25_000;
+}
 export function responseFor(page, method, pathname) {
-  return page.waitForResponse(response => {
+  const waiting=page.waitForResponse(response => {
     const url = new URL(response.url());
     return url.origin === ORIGIN && response.request().method() === method && (typeof pathname === 'string' ? url.pathname === pathname : pathname.test(url.pathname));
-  }, { timeout: 55_000 });
+  }, { timeout: responseTimeout(pathname,method) });
+  // Attach rejection handling immediately: a failed click must not leave an
+  // unhandled waitForResponse rejection after test teardown. The caller still
+  // awaits the original promise and fails on timeout/status mismatch.
+  const observed=waiting?.then(response=>{recordHttpStatus(response.status());return response;});
+  observed?.catch(()=>{});
+  return observed;
 }
 export async function body(response, statuses = [200]) {
   requireSafe(statuses.includes(response.status()), 'BROWSER_HTTP_STATUS_MISMATCH');
@@ -195,20 +219,51 @@ export function exactAmount(value) {
   return match[1] + '.' + (match[2] || '').padEnd(2, '0');
 }
 export async function logout(page) {
-  let reply;
-  await authAction(page,'/api/v1/auth/logout',async()=>{reply=responseFor(page,'POST','/api/v1/auth/logout');await page.locator('#logout').click();});
-  await body(await reply);
-  await expect(page.locator('#login-form')).toBeVisible();
+  return checkpoint('LOGOUT_CONFIRMED',async()=>{
+    let reply;
+    await authAction(page,'/api/v1/auth/logout',async()=>{reply=responseFor(page,'POST','/api/v1/auth/logout');await page.locator('#logout').click();});
+    await body(await reply);
+    await expect(page.locator('#login-form')).toBeVisible();
+  });
 }
 
 export async function authAction(page,pathname,action) {return authBudget.run(page,pathname,action);}
+// Protected routes must use the released SPA controls. A hard deep-link load
+// races the in-memory session bootstrap and is redirected to the dashboard.
+export const PORTAL_BUTTONS=Object.freeze({
+  '/admin/dashboard':'Overview','/admin/merchants':'Merchant Management',
+  '/admin/ai':'AI Assistant','/merchant/dashboard':'Dashboard',
+  '/merchant/payments':'Payments','/merchant/ai':'AI Assistant',
+  '/merchant/payment-links/create':'Payment Links'
+});
+export function navigationPlan(current,target,privateVisible) {
+  const from=new URL(current,ORIGIN),to=new URL(target,ORIGIN);
+  requireSafe(to.origin===ORIGIN&&!to.search&&!to.hash,'FIXED_BROWSER_TARGET_REQUIRED');
+  const role=to.pathname.split('/')[1];
+  const spa=from.origin===ORIGIN&&from.pathname.startsWith('/'+role+'/')&&privateVisible&&PORTAL_BUTTONS[to.pathname];
+  return {spa:Boolean(spa),button:spa?PORTAL_BUTTONS[to.pathname]:null,createLink:spa&&to.pathname==='/merchant/payment-links/create'};
+}
 export async function navigate(page,target) {
-  const url=new URL(target,ORIGIN);requireSafe(url.origin===ORIGIN,'FIXED_BROWSER_TARGET_REQUIRED');
+  const url=new URL(target,ORIGIN);requireSafe(url.origin===ORIGIN&&!url.search&&!url.hash,'FIXED_BROWSER_TARGET_REQUIRED');
   if(/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(url.pathname))return page.goto(target);
-  return authAction(page,'/api/v1/auth/refresh',()=>page.goto(target));
+  const plan=navigationPlan(page.url(),target,await page.locator('#private-view').isVisible());
+  if(plan.spa)return checkpoint('PORTAL_NAVIGATION',async()=>{
+    await page.locator('#portal-nav-extra').getByRole('button',{name:plan.button,exact:true}).click();
+    if(plan.createLink)await page.locator('#merchant-links-workspace').getByRole('button',{name:'Create Payment Link',exact:true}).click();
+    await expect(page).toHaveURL(ORIGIN+url.pathname);
+  });
+  return authAction(page,'/api/v1/auth/refresh',async()=>{
+    const restored=responseFor(page,'POST','/api/v1/auth/refresh');
+    await Promise.all([page.goto(target),restored.then(response=>{
+      requireSafe([200,401].includes(response.status()),'SESSION_RESTORE_HTTP_STATUS');
+    })]);
+  });
 }
 export async function refreshPage(page) {
   const url=new URL(page.url());requireSafe(url.origin===ORIGIN,'FIXED_BROWSER_TARGET_REQUIRED');
   if(/^\/checkout\/[A-Za-z0-9_-]{43}$/.test(url.pathname))return page.reload();
-  return authAction(page,'/api/v1/auth/refresh',()=>page.reload());
+  return checkpoint('SESSION_REFRESH',()=>authAction(page,'/api/v1/auth/refresh',async()=>{
+    const restored=responseFor(page,'POST','/api/v1/auth/refresh');
+    await Promise.all([page.reload(),restored.then(response=>requireSafe(response.status()===200,'SESSION_RESTORE_HTTP_STATUS'))]);
+  }));
 }

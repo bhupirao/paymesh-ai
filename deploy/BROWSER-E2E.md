@@ -149,3 +149,69 @@ This is not an arbitrary sleep or Retry-After login retry: every UI action/reque
 The test module is worker-local; if a worker fails/restarts, the job already failed and the replacement worker might encounter residual server budget. That must remain a failure, not trigger an automatic retry or a fresh Java process. A new separately approved workflow run always has a fresh isolated stack.
 
 Offline verification: 156 deployment tests pass, including a temporary JDK-only harness compiling the unchanged production Java limiter and exercising 16 checks for allowed admissions, excess rejection, Retry-After, expiry and distinct clients. No Spring/Maven build, database or local service is started. The 41 Node tests include fake-clock pacing, mixed roles/endpoints, unplanned refreshes, response-completion timing, no double counting, bounded waits and rejection without retry. Existing Java integration tests already cover forwarded-header spoofing and endpoint roles; the complete Java and AI-service Python suites were not rerun because their sources are unchanged. The new browser run remains pending. No backend, proxy, security configuration, workflow, Compose, package dependency or release digest was changed, and no image rebuild is required for this test-side correction.
+
+## Coordinated journey audit after run 44867570752
+
+Reviewed runner commit: `6245d7794397dbb7dd1727e6865cc550a1952c15`.
+Published application contract: `cefa7df83a5bf16d011e82041c95e2d93b9c637b` (the four image locks remain unchanged).
+This is an offline correction and source audit, **not a successful browser run**.
+
+### Exact latest failure and evidence
+
+The sanitized artifact identifies `journey.spec.js:39`: filling the Admin `Search` input with `getByLabel('Search', {exact:true})`. Chromium launched. Desktop and mobile tests passed; registration/pending login/logout passed in 64,107 ms; the Admin stage failed in 16,320 ms. Overall journey elapsed time was 80,577 ms. This was an action timeout, not exhaustion of the 900,000 ms test budget. The previous stage included legitimate auth-budget waiting.
+
+Admin login's dashboard assertions completed before line 39. The artifact has no login-failure witness or recorded Admin HTTP status; do not claim a measured Admin 200/429. The source reproducer establishes the navigation defect: cold loading `/admin/merchants` with an initially empty in-memory session rewrites the route to `/admin/login`, then restoration sends it to `/admin/dashboard`. The dashboard also has an enabled **Apply / Look up** control, but deliberately has no **Search** field. Thus the old enabled-button assertion could pass on the wrong view. The exact live URL was not retained, but the published router's transition reproduces this mismatch offline.
+
+### Corrections and retained requirements
+
+- Authenticated deep links now use the actual `#portal-nav-extra` buttons (Merchant Management, Payments, AI Assistant, etc.) and assert the resulting route. Payment-link creation uses Payment Links followed by the real Create Payment Link control. No injected router calls, API-only replacement or synthetic successful responses.
+- Hard-load/session tests still use real navigation/reload, wait for the single native refresh response and require its intended status. Login waits for its one native response; credential requests are never retried. Cross-role hard navigation is retained to verify denial.
+- The ownership denial assertion accepts the actual 403 **Access denied** wording in addition to existing inaccessible/not-permitted wording. The required 403/404 status and empty payment display remain.
+- Admin approval still requires unique email search, native detail selection, ownership reference, attestation, cancel/reopen and explicit confirmation. It now also requires the returned Merchant ID and ACTIVE status.
+- Response observers attach rejection handling immediately so an action failure does not leave an unhandled response-wait rejection. Original caller-visible failure is preserved.
+- Auth-budget reservation now covers the waiting interval. A second admission for the same page fails instead of overwriting the first reservation. Different-page requests share the same budget; excess concurrent waiters fail at the existing bounded wait limit.
+- Named browser contexts explicitly use 15-second action and 30-second navigation deadlines. No server, model, credentials, limiter configuration, dependency or published image changed.
+
+### Complete contract matrix
+
+PASS below means source/contract review passed, not an unexecuted browser result. FIXED denotes a test-side defect corrected in this patch. UNKNOWN requires actual Chromium execution. BLOCKED denotes a demonstrated published-application gap that is intentionally still asserted.
+
+| Journey | Route, controls and response contract | Authentication/data dependency | Audit |
+|---|---|---|---|
+| Desktop/mobile validation | `/merchant/login`, `/merchant/signup`, `/admin/login`; stable login/signup IDs, native Tab/Enter, inline errors | Three startup refreshes per test, no valid login submissions | PASS; both passed latest run. Pixel/layout checks outside these viewports remain UNKNOWN |
+| Registration | `/merchant/signup`; `#signup-check`, required fields, `#signup-success-link`; POST register 201, PENDING_APPROVAL | Two synthetic accounts, fresh DB; two refreshes + two registrations | PASS; passed latest run |
+| Pending Merchant | `/merchant/login` → `/merchant/dashboard`; `#pending-onboarding`; logout 200 | Pending-role token, no financial access; refresh/login/logout share IP budget | PASS; passed latest run |
+| Admin login | `/admin/login` → `/admin/dashboard`; identity and Admin workspace visible | SQL-bootstrap Admin only; one refresh and one login | PASS source; reached subsequent failing action, exact live HTTP status UNKNOWN |
+| Merchant search/detail | SPA `/admin/merchants` → `/admin/merchant`; Search, Apply / Look up, exact email row/Open; GET items + authorized detail | ADMIN; two actual registered profiles; reads do not consume auth budget | FIXED hard-load/dashboard mismatch |
+| Native approval | Ownership reference, attestation, Review approve, focused confirmation, cancel/reopen, Confirm approve; POST 200 ACTIVE | ADMIN; PENDING_APPROVAL + registrationUserId; exact Merchant ID required | PASS contract; runtime UNKNOWN |
+| Active Merchant/dashboard | Fresh login for A/B, dashboard refresh, workspace visibility, role-denied hard routes | New active sessions after approval; login/refresh/logout count globally | FIXED restore-response synchronization; runtime UNKNOWN |
+| Payment create/process/list | `#nav-create`, review/confirm IDs, POST payment 201 CREATED, process 200 SUCCESS, SPA Payments/Open payment | Merchant A membership; synthetic 13.25 INR payment; idempotency remains frontend-owned | FIXED list deep-link navigation; runtime UNKNOWN |
+| Merchant B isolation | Known payment lookup, 403/404, denial feedback, empty result | Separate B browser context, A-owned UUID | FIXED valid 403 feedback wording; runtime UNKNOWN |
+| AI investigation | `#investigate-button`; POST investigate, matching payment scope, visible Customer view | Authorized current selected payment; RAG_LLM + SUCCEEDED + knowledge references | FIXED response deadline; real inference UNKNOWN in this browser run |
+| Refunds | Refresh details, Review refund/focus, Confirm refund; 201 SUCCESS; 3.25 then 10.00 INR, total13.25, remaining0, REFUNDED | Fresh 30-second refund snapshot, complete authorized history; no automatic mutation retries | PASS contract; runtime UNKNOWN |
+| Payment link/customer checkout | SPA create route; 201 link + generated token URL; unauthenticated native checkout, review/back/confirm; 200 PAID, receipt reload | Synthetic25.00 USD/CARD; isolated customer context; checkout has no portal refresh | FIXED link-route navigation; runtime UNKNOWN |
+| Merchant/Admin chat | SPA AI routes; textarea Enter/Shift+Enter, explicit Send; completed saved turn response200; visible nonempty answer | Current role eligibility/profile; creation20s + chat45s; actual model success required | FIXED navigation, readiness and response budget; runtime UNKNOWN |
+| Saved list/open/rename/delete | History details, exact title, search and selected row; GET lists/messages, POST rename/delete200, visible version/title/cleared transcript | Owner/role/context checks and expectedVersion preserved; no inference on load | PASS contract apart from refresh below; runtime UNKNOWN |
+| AI refresh restoration | Actual reload must retain AI route and visible saved answer without another send | Session bootstrap + history-state bookmark | **BLOCKED** by released router; assertion retained, no explicit-load workaround |
+| Cross-tab logout/protected route | Same-context second dashboard tab, native logout, both login forms, protected workspace hidden | HttpOnly refresh cookie, BroadcastChannel revocation; no exported auth state | PASS source; real ordering UNKNOWN |
+| Teardown | Existing diagnostics first, scoped container/volume ownership checks and cleanup on both outcomes | Unique disposable project; no external/shared volume deletion | PASS existing offline regressions; latest run artifact reports containersAbsent=true, volumesAbsent=true |
+
+### Published-application blocker (not silently patched)
+
+`frontend/assets/js/portals/router.js` calls `history.replaceState(null, '', loginPath)` during cold protected-route resolution before `persistence.restore()` completes. The original AI route and its `history.state.paymeshConversation` pointer are lost. Restoration then selects the dashboard. An offline test executes the actual router with the same unauthenticated→restored lifecycle and proves both losses. The automatic-history-refresh assertion remains, with an additional explicit AI-route assertion to expose this contract failure early. There is no test-side workaround that can honestly prove automatic restoration of the original pointer after it was erased.
+
+A separately approved frontend application fix and new frontend image/digest are needed to satisfy that full requirement. Existing released images are preserved. The test-side corrections can be reviewed/committed separately; a claim that the entire unchanged-image journey is now expected to pass is blocked. An investigative run could collect later runtime evidence, but is not a substitute for addressing this known gap.
+
+### Bounded time budget
+
+- Auth limiter remains10 requests/60s per remote IP, all five auth endpoints shared. Test admission remains9 planned slots,61s quiet window,90s maximum per admission. The pacing wait occurs before starting login/register/logout response observers. No sleeps are added inside browser click/navigation timeouts.
+- Source-counted planned auth operations are approximately31 across all three tests after SPA navigation replaces unnecessary cold deep links. Normal case: three quiet-window resets ×61s =183s across the suite. These are planning counts, not a recorded wire ledger; timers/focus refreshes are observed and counted conservatively. Continued unexpected auth traffic produces a bounded failure, not unlimited waiting.
+- Ordinary response observers:25s =20s normal client deadline +5s reporting margin. POST investigation:70s =65s client deadline +5s. POST conversation send:70s covers creation20s + chat45s +5s. GET history remains25s. AI composer readiness25s covers its eligibility read20s +5s.
+- Single browser action15s, navigation30s and ordinary expect15s remain unchanged. Each additional native context explicitly receives the same action/navigation limits.
+- Complete journey900s is retained: planning allowance of up to four ordinary quiet windows244s, three AI waits210s, plus446s for native interactions and bounded reads. It is not extended to hide the latest missing selector. Accessibility tests remain300s, suite global1800s, job55min, one worker, zero retries. None of these is an unlimited wait or a guarantee that the sum of all worst-case deadlines fits; the outer deadline deliberately stops a stalled run.
+
+### Safe action diagnostics
+
+The reporter retains only allowlisted last-completed and pending action codes, latest observed numeric HTTP status, existing timeout/assertion categories, elapsed time, Chromium witness and allowlisted source basename/line. Action codes cover login, search input/results, detail, approval review/dialog/cancel/submit/confirmation, payments, refunds, checkout, AI/history and logout. Nested checkpoints preserve the innermost failed action. The last observed status is **not** asserted to belong to a pending action when concurrent requests exist. No payload, actual URL, error message/stack, token, cookie, prompt or answer is emitted. Evidence stays in the existing mode600 sanitized report and stdout schema; raw browser artifacts remain disabled.
+
+Offline results for this coordinated patch: **160 deployment Python tests passed** (including the unchanged production limiter's **16 isolated Java checks**) and **50 Node helper/reporter tests passed**. The Node suite is also invoked by one deployment test; these counts are not additive browser cases. JavaScript/Python syntax, YAML/JSON parsing, targeted secret-pattern checks, retained UI assertion checks and `git diff --check` passed. The Git index and original status/staging were preserved. No Chromium, Docker, inference, service change, image build, commit, push or workflow dispatch was performed. Full Java and AI-service Python suites were not rerun because application sources were unchanged. Runtime readiness remains **BLOCKED for a complete successful journey on the existing frontend digest** by the refresh/bootstrap defect described above; the test-side patch is ready for review.
