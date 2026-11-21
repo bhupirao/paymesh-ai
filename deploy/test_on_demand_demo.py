@@ -325,4 +325,166 @@ class ServeDiagnosticTests(unittest.TestCase):
             self.assertTrue(json.loads((folder/'public-access-closed.json').read_text())['success'])
             self.assertNotIn('SECRET_CANARY',output.getvalue()+json.dumps(evidence))
 
+
+
+class ProbeRetryTests(unittest.TestCase):
+    URL='https://offline-demo.trycloudflare.com'
+    LOGIN='https://login.trycloudflare.com/authorize'
+    def setup_probe(self):
+        from types import SimpleNamespace
+        clock=SimpleNamespace(now=0.0)
+        clock.read=lambda:clock.now
+        stopped=Mock();stopped.is_set.return_value=False
+        def wait(seconds):clock.now+=seconds;return False
+        stopped.wait.side_effect=wait
+        child=Mock();child.poll.return_value=None
+        return clock,stopped,child,demo.ServeTrace()
+    def result(self,status=None,category='DNS_TEMPORARY_FAILURE',location='',number=None):
+        from types import SimpleNamespace
+        return SimpleNamespace(returncode=0,stdout=json.dumps({'status':status,'location':location,'networkCategory':category,'networkErrno':number}).encode())
+    def good(self):return self.result(302,'NONE',self.LOGIN)
+    def test_initial_network_failure_then_valid_challenge(self):
+        clock,stopped,child,trace=self.setup_probe()
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',side_effect=[self.result(),self.good()]) as run:
+            self.assertEqual(demo.otp_probe(self.URL,child,stopped,300,trace),(302,self.LOGIN))
+        self.assertEqual(run.call_count,2);self.assertEqual(trace.probe_attempts,2)
+        self.assertTrue(trace.challenge_match);self.assertFalse(trace.access_opened)
+        stopped.wait.assert_called_once_with(.5)
+    def test_persistent_network_failure_is_bounded(self):
+        clock,stopped,child,trace=self.setup_probe()
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',return_value=self.result()) as run:
+            with self.assertRaisesRegex(Failure,'OTP_PROBE_ATTEMPTS_EXHAUSTED'):demo.otp_probe(self.URL,child,stopped,300,trace)
+        self.assertEqual(run.call_count,10);self.assertLessEqual(clock.now,30);self.assertFalse(trace.access_opened)
+    def test_invalid_and_missing_challenge_never_pass(self):
+        for status,location in [(200,''),(302,''),(302,'https://evil.invalid/authorize'),(301,self.LOGIN),(308,self.LOGIN),(401,''),(403,'')]:
+            with self.subTest(status=status,location=location):
+                clock,stopped,child,trace=self.setup_probe()
+                with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',return_value=self.result(status,'NONE',location)) as run:
+                    observed=demo.otp_probe(self.URL,child,stopped,300,trace)
+                self.assertFalse(demo.challenge(observed[1],observed[0]));self.assertEqual(run.call_count,1);self.assertFalse(trace.access_opened)
+    def test_transient_gateway_error_remains_not_ready(self):
+        clock,stopped,child,trace=self.setup_probe()
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',side_effect=[self.result(503,'NONE',''),self.good()]):
+            status,location=demo.otp_probe(self.URL,child,stopped,300,trace)
+        self.assertTrue(demo.challenge(location,status));self.assertEqual(trace.last_transient,'HTTP_SERVICE_NOT_READY')
+    def test_tunnel_exit_during_backoff_stops_retry(self):
+        clock,stopped,child,trace=self.setup_probe()
+        stopped.wait.side_effect=lambda seconds:setattr(child.poll,'return_value',1)
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',return_value=self.result()) as run:
+            with self.assertRaisesRegex(Failure,'DEMO_TUNNEL_EXITED'):demo.otp_probe(self.URL,child,stopped,300,trace)
+        self.assertEqual(run.call_count,1);self.assertFalse(trace.access_opened)
+    def test_tunnel_exit_during_valid_response_is_rejected(self):
+        clock,stopped,child,trace=self.setup_probe()
+        def run(*args,**kwargs):child.poll.return_value=1;return self.good()
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',side_effect=run):
+            with self.assertRaisesRegex(Failure,'DEMO_TUNNEL_EXITED'):demo.otp_probe(self.URL,child,stopped,300,trace)
+    def test_cancelled_backoff_stops_without_another_request(self):
+        clock,stopped,child,trace=self.setup_probe();stopped.wait.side_effect=lambda seconds:setattr(stopped.is_set,'return_value',True)
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',return_value=self.result()) as run:
+            with self.assertRaisesRegex(Failure,'DEMO_CANCELLED'):demo.otp_probe(self.URL,child,stopped,300,trace)
+        self.assertEqual(run.call_count,1)
+    def test_hard_attempt_timeouts_cannot_exceed_budget(self):
+        clock,stopped,child,trace=self.setup_probe();timeouts=[]
+        def run(*args,**kwargs):
+            budget=kwargs['timeout'];timeouts.append(budget);clock.now+=budget
+            raise demo.subprocess.TimeoutExpired('offline-fixed-command',budget)
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',side_effect=run):
+            with self.assertRaisesRegex(Failure,'OTP_PROBE_DEADLINE_EXCEEDED'):demo.otp_probe(self.URL,child,stopped,300,trace)
+        self.assertLessEqual(clock.now,30);self.assertTrue(all(0<t<=5 for t in timeouts));self.assertFalse(trace.access_opened)
+    def test_session_deadline_rejects_late_valid_response(self):
+        clock,stopped,child,trace=self.setup_probe()
+        def run(*args,**kwargs):
+            self.assertEqual(kwargs['timeout'],2);clock.now=2;return self.good()
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',side_effect=run):
+            with self.assertRaisesRegex(Failure,'OTP_PROBE_DEADLINE_EXCEEDED'):demo.otp_probe(self.URL,child,stopped,2,trace)
+        self.assertFalse(trace.access_opened)
+    def test_tls_and_unknown_network_fail_closed_without_retry(self):
+        for category in ('TLS_CERTIFICATE_REJECTED','TLS_NEGOTIATION_FAILED','UNKNOWN_NETWORK_ERROR','DNS_FAILURE'):
+            clock,stopped,child,trace=self.setup_probe()
+            with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',return_value=self.result(category=category)) as run:
+                with self.assertRaisesRegex(Failure,'OTP_PROBE_NONRETRYABLE_NETWORK_ERROR'):demo.otp_probe(self.URL,child,stopped,300,trace)
+            self.assertEqual(run.call_count,1);self.assertFalse(trace.access_opened)
+    def test_subprocess_failure_and_malformed_output_never_pass(self):
+        from types import SimpleNamespace
+        for result in [SimpleNamespace(returncode=1,stdout=b'SECRET_CANARY'),SimpleNamespace(returncode=0,stdout=b'not JSON SECRET_CANARY'),SimpleNamespace(returncode=0,stdout=b'{}')]:
+            clock,stopped,child,trace=self.setup_probe()
+            with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',return_value=result):
+                with self.assertRaises(Failure):demo.otp_probe(self.URL,child,stopped,300,trace)
+            self.assertFalse(trace.access_opened)
+    def test_probe_target_in_stdin_not_command_line(self):
+        clock,stopped,child,trace=self.setup_probe()
+        with patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',return_value=self.good()) as run:
+            demo.otp_probe(self.URL,child,stopped,300,trace)
+        self.assertNotIn(self.URL,' '.join(run.call_args.args[0]));self.assertEqual(json.loads(run.call_args.kwargs['input']),{'url':self.URL})
+    def test_reason_classification_without_error_message_leak(self):
+        import socket,ssl,urllib.error
+        cases=[(socket.gaierror(socket.EAI_AGAIN,'SECRET_CANARY'),'DNS_TEMPORARY_FAILURE'),(socket.gaierror(socket.EAI_NONAME,'SECRET_CANARY'),'DNS_NAME_NOT_RESOLVED'),(ssl.SSLCertVerificationError(1,'SECRET_CANARY'),'TLS_CERTIFICATE_REJECTED'),(ConnectionRefusedError(111,'SECRET_CANARY'),'CONNECTION_REFUSED'),(TimeoutError('SECRET_CANARY'),'NETWORK_TIMEOUT'),('SECRET_CANARY','UNKNOWN_NETWORK_ERROR')]
+        for reason,expected in cases:
+            category,number=demo.network_details(urllib.error.URLError(reason));self.assertEqual(category,expected)
+            self.assertNotIn('SECRET_CANARY',json.dumps((category,number)))
+    def test_probe_once_retains_verified_tls_and_disables_proxy_redirects(self):
+        import urllib.error,ssl
+        opener=Mock();opener.open.side_effect=urllib.error.URLError(ssl.SSLCertVerificationError(1,'SECRET_CANARY'))
+        with patch.object(demo.urllib.request,'build_opener',return_value=opener) as build:
+            result=demo.probe_once(self.URL)
+        self.assertEqual(result['networkCategory'],'TLS_CERTIFICATE_REJECTED');self.assertIsNone(result['status'])
+        self.assertEqual(build.call_args.args[0].proxies,{});self.assertIsInstance(build.call_args.args[1],demo.NoRedirect)
+        self.assertNotIn('SECRET_CANARY',json.dumps(result))
+        source=(ROOT/'deploy/on_demand_demo.py').read_text()
+        self.assertNotIn('_create_unverified_context',source);self.assertNotIn('CERT_NONE',source)
+    def test_safe_numeric_probe_evidence(self):
+        trace=demo.ServeTrace();trace.probe_attempts=2;trace.network_category='DNS_TEMPORARY_FAILURE';trace.network_errno=-3;trace.last_transient='DNS_TEMPORARY_FAILURE'
+        trace.capture(Failure('OTP_PROBE_DEADLINE_EXCEEDED'))
+        self.assertEqual(trace.failure['otpProbeAttempts'],2);self.assertEqual(trace.failure['networkFailureCategory'],'DNS_TEMPORARY_FAILURE')
+        self.assertEqual(trace.failure['networkErrorNumber'],-3);self.assertFalse(trace.failure['accessOpened'])
+
+
+
+class ProbeIntegrationTests(unittest.TestCase):
+    def test_http_errors_expose_status_only_without_following_redirects(self):
+        import urllib.error
+        from email.message import Message
+        h=Message();h['Location']='https://login.trycloudflare.com/authorize'
+        error=urllib.error.HTTPError('https://offline-demo.trycloudflare.com',302,'SECRET_CANARY',h,None)
+        opener=Mock();opener.open.side_effect=error
+        with patch.object(demo.urllib.request,'build_opener',return_value=opener):
+            result=demo.probe_once(ProbeRetryTests.URL)
+        self.assertEqual(result['status'],302);self.assertTrue(demo.challenge(result['location'],result['status']))
+        self.assertNotIn('SECRET_CANARY',json.dumps(result));opener.open.assert_called_once()
+    def test_retry_failure_closes_public_process_without_ever_opening_edge(self):
+        import contextlib,io,time
+        from types import SimpleNamespace
+        helper=ProbeRetryTests();clock,stopped,child,unused=helper.setup_probe()
+        class LockedEdge:
+            def __init__(self):self.values=[];self.host=None;self.active=False
+            @property
+            def active(self):return self.values[-1]
+            @active.setter
+            def active(self,value):self.values.append(value)
+            def serve_forever(self):pass
+            def shutdown(self):pass
+            def server_close(self):pass
+        edge=LockedEdge();child.pid=123456789;child.terminate.side_effect=lambda:setattr(child.poll,'return_value',0)
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d);root=folder/'source';(root/'deploy').mkdir(parents=True);(folder/'secrets').mkdir()
+            for name in ('admin_password','merchant_password'):(folder/'secrets'/name).write_text('SECRET_CANARY_PASSWORD')
+            (folder/'sanitized-browser.json').write_text(json.dumps(LifecycleTests().report()))
+            (folder/'sanitized-browser-final.json').write_text('{"success":true}')
+            (folder/'demo-created.json').write_text(json.dumps({'created':time.time()}))
+            (folder/'cloudflared').write_bytes(b'NON_EXECUTABLE_OFFLINE_FIXTURE')
+            (root/'deploy/cloudflared-demo.json').write_text(json.dumps({'sha256':hashlib.sha256((folder/'cloudflared').read_bytes()).hexdigest()}))
+            def spawn(*args,**kwargs):
+                kwargs['stdout'].write(('Your protected quick Tunnel has been created! '+helper.URL).encode());kwargs['stdout'].flush();return child
+            def run(args,**kwargs):
+                if '--help' in args:return SimpleNamespace(returncode=0,stdout=b'--allowed-mail')
+                return helper.result()
+            output=io.StringIO();env={'DEMO_ALLOWED_EMAIL':'operator@example.test','DEMO_MINUTES':'5','GITHUB_STEP_SUMMARY':str(folder/'summary')}
+            with patch.object(demo,'ROOT',root),patch.dict(demo.os.environ,env),patch.object(demo,'Edge',return_value=edge),patch.object(demo.threading,'Thread'),patch.object(demo.threading,'Event',return_value=stopped),patch.object(demo.signal,'signal'),patch.object(demo.time,'monotonic',side_effect=clock.read),patch.object(demo.subprocess,'run',side_effect=run),patch.object(demo.subprocess,'Popen',side_effect=spawn),contextlib.redirect_stdout(output):
+                with self.assertRaisesRegex(Failure,'OTP_PROBE_ATTEMPTS_EXHAUSTED'):demo.serve(SimpleNamespace(folder=folder))
+            report=json.loads((folder/'sanitized-demo-serve.json').read_text());closed=json.loads((folder/'public-access-closed.json').read_text())
+            self.assertNotIn(True,edge.values);self.assertFalse(report['accessOpened']);self.assertTrue(closed['publicProcessExited'])
+            self.assertEqual(report['networkFailureCategory'],'DNS_TEMPORARY_FAILURE');self.assertEqual(report['otpProbeAttempts'],10)
+            self.assertNotIn('SECRET_CANARY',output.getvalue()+json.dumps(report))
+            child.terminate.assert_called_once()
+
 if __name__=='__main__':unittest.main()

@@ -193,3 +193,50 @@ The next hosted run requires separate commit/push and execution approval. No
 access gate, public Host/Origin rule, cookie/CSRF check, image lock or browser
 assertion was relaxed. Actual live root cause remains UNKNOWN until this evidence
 is captured; no automatic retry is introduced.
+
+
+## OTP network admission and bounded readiness (Step 22G)
+
+[Run 44902468866](https://github.com/bhupirao/paymesh-ai/actions/runs/44902468866),
+source `817ba162a0fe68746804655e114eafc6e6a518ec`, passed startup and native acceptance
+but failed the first anonymous OTP GET with `URLError` while the protected tunnel
+was running. No HTTP response arrived; application access stayed locked. Closure
+and project container/volume removal were independently verified.
+
+The old evidence did not retain `URLError.reason`, so DNS, TLS, refusal and other
+network causes cannot be distinguished retrospectively. The **confirmed orchestration
+defect** was a single immediate network probe without readiness tolerance. A startup
+race is supported, not proven as the specific network cause: the pinned
+[cloudflared source](https://github.com/cloudflare/cloudflared/blob/2026.11.1/cmd/cloudflared/tunnel/quick_tunnel.go)
+prints the protected hostname before calling `StartServer`. A hostname/banner
+therefore cannot prove DNS propagation, a connected tunnel or successful OTP.
+[Cloudflare documents protected Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
+but gives no readiness/availability guarantee. The existing native OTP authorizer
+and exact HTTPS broker check are unchanged.
+
+Admission now permits at most **10 anonymous GET attempts**, within **30 seconds**
+and the existing session deadline, whichever comes first. Backoff is 0.5, 1, 2,
+then at most 3 seconds, interruptible on cancellation. Each attempt runs in an
+owned Python subprocess with at most a 5-second parent-enforced timeout, including
+DNS resolution; it is killed/reaped on timeout. The subprocess uses verified TLS,
+no cookie jar, no credentials, no environment proxy and no followed redirects.
+The generated URL is passed through stdin, not printed or placed in argv.
+
+Only typed transient DNS name-resolution failures, timeouts, refused/reset or
+unreachable connections, attempt timeouts and HTTP 502/503/504 are NOT READY and
+eligible for bounded retry. TLS certificate/negotiation errors and unknown network
+errors fail closed without retry. Authentication failures, unexpected redirects,
+HTTP 200 without a challenge, and missing/invalid OTP redirects cannot open access.
+The original `challenge()` predicate still decides success. Liveness, cancellation
+and deadline are checked before and after every attempt; late valid responses
+are rejected. Retries never submit passwords or OTPs and never repeat acceptance
+or inference requests.
+
+Failure evidence now includes fixed `networkFailureCategory`, numeric
+`networkErrorNumber`, attempt count and last transient category. DNS versus TLS
+is identified from exception types, not raw messages. On verified readiness,
+a fixed-schema `DEMO_OTP_PROBE_READY_DIAGNOSTIC` witness reports attempts and the
+last transient category without hostname, login state, URL, headers or body.
+No transient condition is labelled authenticated or successful. Unknown details
+remain UNKNOWN. The new path must still be tested in a separately authorized
+hosted run; no live fix is claimed from offline tests.

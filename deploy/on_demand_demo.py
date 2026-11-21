@@ -1,5 +1,8 @@
 """Runner-only demo lifecycle. Import is inert; all outward operations guarded."""
 import hashlib
+import errno
+import socket
+import ssl
 import json
 import os
 from pathlib import Path
@@ -12,7 +15,7 @@ import time
 import urllib.error
 import urllib.request
 from ci_fixture_setup import prepare
-from container_e2e import Suite, require
+from container_e2e import Suite, Failure, require
 from release_artifact_e2e import ReleaseSuite, guard, cleanup_project, validate_image
 from browser_bootstrap import verify
 from frontend_release import TESTS, STAGES
@@ -87,6 +90,99 @@ def challenge(location,status):
     except ValueError:return False
     return status in (302,303,307) and p.scheme=='https' and p.hostname=='login.trycloudflare.com' and port in (None,443) and not p.username and p.path=='/authorize'
 
+# The printed URL precedes cloudflared StartServer: it is not a readiness signal.
+# A hard-bounded child performs each GET so DNS resolution cannot exceed the
+# parent admission deadline. No cookies, credentials or proxy environment used.
+PROBE_BUDGET_SECONDS=30
+PROBE_ATTEMPTS=10
+PROBE_ATTEMPT_SECONDS=5
+TRANSIENT_NETWORK=frozenset(('DNS_TEMPORARY_FAILURE','DNS_NAME_NOT_RESOLVED',
+    'CONNECTION_REFUSED','CONNECTION_RESET','NETWORK_UNREACHABLE','NETWORK_TIMEOUT','ATTEMPT_TIMEOUT'))
+PROBE_NETWORK=frozenset((*TRANSIENT_NETWORK,'NONE','TLS_CERTIFICATE_REJECTED',
+    'TLS_NEGOTIATION_FAILED','DNS_FAILURE','UNKNOWN_NETWORK_ERROR'))
+
+def network_details(error):
+    reason=error.reason if isinstance(error,urllib.error.URLError) else error
+    number=getattr(reason,'errno',None)
+    number=number if type(number) is int and -4096<=number<=4096 else None
+    if isinstance(reason,ssl.SSLCertVerificationError):return 'TLS_CERTIFICATE_REJECTED',number
+    if isinstance(reason,ssl.SSLError):return 'TLS_NEGOTIATION_FAILED',number
+    if isinstance(reason,socket.gaierror):
+        if number==socket.EAI_AGAIN:return 'DNS_TEMPORARY_FAILURE',number
+        if number==socket.EAI_NONAME:return 'DNS_NAME_NOT_RESOLVED',number
+        return 'DNS_FAILURE',number
+    if isinstance(reason,TimeoutError):return 'NETWORK_TIMEOUT',number
+    if isinstance(reason,ConnectionRefusedError):return 'CONNECTION_REFUSED',number
+    if isinstance(reason,ConnectionResetError):return 'CONNECTION_RESET',number
+    if isinstance(reason,OSError) and number in (errno.ENETUNREACH,errno.EHOSTUNREACH):return 'NETWORK_UNREACHABLE',number
+    return 'UNKNOWN_NETWORK_ERROR',number
+
+def probe_once(url):
+    public_host(url) # Fixed provider host only; no arbitrary URL or path input.
+    opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
+    try:
+        with opener.open(url+'/_demo/start',timeout=4) as response:
+            status=response.status;location=response.headers.get('Location','')
+    except urllib.error.HTTPError as response:
+        status=response.code;location=response.headers.get('Location','');response.close()
+    except (urllib.error.URLError,OSError) as error:
+        category,number=network_details(error)
+        return {'status':None,'location':'','networkCategory':category,'networkErrno':number}
+    require(type(status) is int and 100<=status<=599 and type(location) is str
+            and len(location)<=2048,'OTP_PROBE_RESPONSE_INVALID')
+    return {'status':status,'location':location,'networkCategory':'NONE','networkErrno':None}
+
+def probe_liveness(child,stopped,deadline):
+    require(child.poll() is None,'DEMO_TUNNEL_EXITED')
+    require(not stopped.is_set(),'DEMO_CANCELLED')
+    require(time.monotonic()<deadline,'OTP_PROBE_DEADLINE_EXCEEDED')
+
+def otp_probe(url,child,stopped,session_deadline,trace):
+    public_host(url)
+    deadline=min(session_deadline,time.monotonic()+PROBE_BUDGET_SECONDS)
+    for attempt in range(PROBE_ATTEMPTS):
+        probe_liveness(child,stopped,deadline)
+        trace.probe_attempts=attempt+1
+        try:
+            result=subprocess.run([sys.executable,'-B',str(Path(__file__).resolve()),'otp-probe'],
+                input=json.dumps({'url':url}).encode(),capture_output=True,
+                timeout=min(PROBE_ATTEMPT_SECONDS,deadline-time.monotonic()))
+        except subprocess.TimeoutExpired:
+            # subprocess.run kills/reaps only its own child before returning.
+            value={'status':None,'location':'','networkCategory':'ATTEMPT_TIMEOUT','networkErrno':None}
+        else:
+            require(result.returncode==0,'OTP_PROBE_EXECUTION_FAILED')
+            require(len(result.stdout)<=4096,'OTP_PROBE_RESPONSE_INVALID')
+            try:value=json.loads(result.stdout)
+            except (ValueError,UnicodeError):raise Failure('OTP_PROBE_RESPONSE_INVALID') from None
+            require(type(value) is dict and set(value)=={'status','location','networkCategory','networkErrno'}
+                and type(value['networkCategory']) is str and value['networkCategory'] in PROBE_NETWORK and type(value['location']) is str
+                and len(value['location'])<=2048,'OTP_PROBE_RESPONSE_INVALID')
+            status=value['status'];number=value['networkErrno']
+            require(status is None or type(status) is int and 100<=status<=599,'OTP_PROBE_RESPONSE_INVALID')
+            require(number is None or type(number) is int and -4096<=number<=4096,'OTP_PROBE_RESPONSE_INVALID')
+            require((status is None)==(value['networkCategory']!='NONE'),'OTP_PROBE_RESPONSE_INVALID')
+        trace.probe_status=value['status'];trace.network_category=value['networkCategory'];trace.network_errno=value['networkErrno']
+        trace.challenge_match=challenge(value['location'],value['status']) if value['status'] is not None else None
+        probe_liveness(child,stopped,deadline) # Never accept a late/cancelled result.
+        if trace.challenge_match:
+            print('DEMO_OTP_PROBE_READY_DIAGNOSTIC='+json.dumps({'attempts':trace.probe_attempts,
+                'lastTransientCategory':trace.last_transient,'validChallengeObserved':True}),flush=True)
+            return value['status'],value['location']
+        if value['status'] is not None:
+            # Only gateway/service-unavailable responses can be readiness races;
+            # auth failures and unexpected redirects fail the original gate now.
+            if value['status'] not in (502,503,504):return value['status'],value['location']
+            trace.last_transient='HTTP_SERVICE_NOT_READY'
+        else:
+            require(value['networkCategory'] in TRANSIENT_NETWORK,'OTP_PROBE_NONRETRYABLE_NETWORK_ERROR')
+            trace.last_transient=value['networkCategory']
+        if attempt+1==PROBE_ATTEMPTS:break
+        delay=min((.5,1,2,3)[min(attempt,3)],max(0,deadline-time.monotonic()))
+        stopped.wait(delay) # Interruptible, bounded, no credentials retried.
+    require(False,'OTP_PROBE_ATTEMPTS_EXHAUSTED')
+
+
 def terminate(child):
     if child is not None and child.poll() is None:
         child.terminate()
@@ -118,7 +214,9 @@ SERVE_FAILURES=frozenset(('DEMO_BROWSER_GATE_FAILED','DEMO_COMPLETE_CHROMIUM_REQ
     'DEMO_ADMISSION_DEADLINE_EXCEEDED','CLOUDFLARED_CHECKSUM_MISMATCH',
     'QUICK_TUNNEL_EMAIL_AUTH_UNSUPPORTED','DEMO_TUNNEL_EXITED','DEMO_TUNNEL_LOG_LIMIT',
     'PROTECTED_TUNNEL_NOT_ESTABLISHED','OTP_ACCESS_GATE_UNVERIFIED','DEMO_EXPIRED',
-    'DEMO_PUBLIC_PROCESS_STILL_RUNNING'))
+    'DEMO_PUBLIC_PROCESS_STILL_RUNNING','DEMO_CANCELLED','OTP_PROBE_DEADLINE_EXCEEDED',
+    'OTP_PROBE_EXECUTION_FAILED','OTP_PROBE_RESPONSE_INVALID','OTP_PROBE_NONRETRYABLE_NETWORK_ERROR',
+    'OTP_PROBE_ATTEMPTS_EXHAUSTED'))
 
 def error_code(error):
     from container_e2e import Failure
@@ -136,6 +234,7 @@ class ServeTrace:
     def __init__(self):
         self.operation='BROWSER_ACCEPTANCE';self.child=None;self.log=None
         self.probe_status=None;self.challenge_match=None;self.access_opened=False
+        self.probe_attempts=0;self.network_category='NONE';self.network_errno=None;self.last_transient='NONE'
         self.started=time.monotonic();self.failure=None
     def at(self,code):
         require(code in SERVE_OPERATIONS,'UNKNOWN_DEMO_OPERATION')
@@ -177,6 +276,8 @@ class ServeTrace:
             'hostnameObserved':bool(re.search(rb'https://[a-z0-9-]+[.]trycloudflare[.]com',raw)),
             'tunnelOutputCategory':category,'otpProbeHttpStatus':self.probe_status,
             'otpChallengeMatched':self.challenge_match,'accessOpened':self.access_opened,
+            'otpProbeAttempts':self.probe_attempts,'networkFailureCategory':self.network_category,
+            'networkErrorNumber':self.network_errno,'lastTransientCategory':self.last_transient,
             'rawLogsRetained':False}
     def emit(self,folder):
         if self.failure is None:return
@@ -247,10 +348,7 @@ def _serve(suite,trace):
             # Server remains locked until the unauthenticated internet probe
             # proves the Access challenge is before the origin.
             trace.at('OTP_PROBE')
-            opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
-            try:
-                with opener.open(url+'/_demo/start',timeout=20) as response:status=response.status;location=response.headers.get('Location','')
-            except urllib.error.HTTPError as response:status=response.code;location=response.headers.get('Location','');response.close()
+            status,location=otp_probe(url,child,stopped,deadline,trace)
             trace.probe_status=status if type(status) is int and 100<=status<=599 else None
             trace.challenge_match=challenge(location,status)
             trace.at('OTP_CHALLENGE_VALIDATION')
@@ -285,6 +383,10 @@ def _serve(suite,trace):
 
 def main(action):
     guard();lock()
+    if action=='otp-probe':
+        raw=sys.stdin.buffer.read(2049);require(len(raw)<=2048,'OTP_PROBE_RESPONSE_INVALID')
+        value=json.loads(raw);require(type(value) is dict and set(value)=={'url'} and type(value['url']) is str,'OTP_PROBE_RESPONSE_INVALID')
+        print(json.dumps(probe_once(value['url'])),flush=True);return 0
     if action=='fixtures':
         prepare()
         # GITHUB_ENV is consumed only by the NEXT Actions step.
